@@ -1,0 +1,249 @@
+/*
+*Quadrature Decoder 
+*/
+#include "Arduino.h"
+#include <digitalWriteFast.h>  // library for high performance reads and writes by jrraines
+                               // see http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1267553811/0
+                               // and http://code.google.com/p/digitalwritefast/
+
+// It turns out that the regular digitalRead() calls are too slow and bring the arduino down when
+// I use them in the interrupt routines while the motor runs at full speed.
+
+// Quadrature encoders
+//  encoder
+#define cEncoderInterruptA 0
+#define cEncoderInterruptB 1
+#define cEncoderPinA 2
+#define cEncoderPinB 3
+#define EncoderIsReversed
+
+volatile bool EncoderASet;
+volatile bool EncoderBSet;
+volatile bool EncoderAPrev;
+volatile bool EncoderBPrev;
+volatile long EncoderTicks = 0;
+
+#define segment1_start    0
+#define segment1_end      2
+
+#define segment2_start    2
+#define segment2_end      4
+
+#define segment3_start    4
+#define segment3_end      6
+
+#define segment4_start    6
+#define segment4_end      8
+
+#define segment5_start    8
+#define segment5_end      10
+
+#define segment6_start    10
+#define segment6_end      12
+
+#define segment7_start    12
+#define segment7_end      14
+
+#define segment8_start    14
+#define segment8_end      16
+
+#define PWM_HIGH          220
+#define PWM_MED           127
+#define PWM_LOW           35
+
+int arr[3];
+
+double setpoint_pos = 8;
+double actual_pos = 0;
+double error = 0;
+
+int PWM_val = 127;
+
+#define coil1             10
+#define coil2             11
+
+
+void setup()
+{
+  Serial.begin(9600);
+
+  // Quadrature encoders
+  //  encoder
+  pinMode(cEncoderPinA, INPUT);      // sets pin A as input
+  digitalWrite(cEncoderPinA, LOW);  // turn on pullup resistors
+  pinMode(cEncoderPinB, INPUT);      // sets pin B as input
+  digitalWrite(cEncoderPinB, LOW);  // turn on pullup resistors
+  attachInterrupt(cEncoderInterruptA, HandleMotorInterruptA, CHANGE);
+  attachInterrupt(cEncoderInterruptB, HandleMotorInterruptB, CHANGE);
+
+  pinMode(coil1, OUTPUT);
+  pinMode(coil2, OUTPUT);
+  analogWrite(coil1, PWM_MED);
+  analogWrite(coil2, PWM_MED);
+}
+
+void loop()
+{ 
+  actual_pos = (EncoderTicks * 0.75)/10;
+  lookup(actual_pos); //check which coil to turn on
+  error = setpoint_pos - actual_pos; //calculate the error
+
+  if(error <  0) {
+    if(arr[1] == 0){ // CCW
+      PWM_val = PWM_LOW;
+    }
+    else if(arr[1] == 1) { //CW
+      PWM_val = PWM_HIGH;
+    }
+    else PWM_val = PWM_MED;
+  } 
+  else if(error > 0) {
+    if(arr[2] == 0){ // CCW
+      PWM_val = PWM_LOW;
+    }
+    else if(arr[2] == 1) { //CW
+      PWM_val = PWM_HIGH;
+    }
+    else PWM_val = PWM_MED;
+  }
+  else PWM_val = PWM_MED;
+
+  if(arr[0] == 1) { // if its Coil 1
+    analogWrite(coil1, PWM_val);
+    analogWrite(coil2, PWM_MED);
+  }
+  else if(arr[0] == 2) { // if its Coil 2
+    analogWrite(coil2, PWM_val);
+    analogWrite(coil1, PWM_MED);
+  }
+  else{
+    analogWrite(coil1, PWM_MED);
+    analogWrite(coil2, PWM_MED);
+  }
+
+  Serial.print("Encoder Ticks: ");
+  Serial.print(EncoderTicks);
+  Serial.print(" Actual: ");
+  Serial.print(actual_pos);
+  Serial.print(" Error: ");
+  Serial.print(error);
+  Serial.print(" PWM: ");
+  Serial.print(PWM_val);
+  Serial.print(" ");
+  for(int i = 0; i < 3; i++)
+  {
+    Serial.print(arr[i]);
+  }  
+  Serial.print("\n");
+
+}
+
+
+// Interrupt service routines for Channel A Rising/Falling edge
+void HandleMotorInterruptA(){
+  EncoderBSet = digitalReadFast(cEncoderPinB);
+  EncoderASet = digitalReadFast(cEncoderPinA);
+  
+  EncoderTicks+=ParseEncoder();
+
+  if (EncoderTicks > 400){
+      EncoderTicks = 0;
+  }
+  if (EncoderTicks < 0){
+      EncoderTicks = 0;
+  }
+  
+  EncoderAPrev = EncoderASet;
+  EncoderBPrev = EncoderBSet;
+}
+
+// Interrupt service routines for Channel B Rising/Falling edge
+void HandleMotorInterruptB(){
+  // Test transition;
+  EncoderBSet = digitalReadFast(cEncoderPinB);
+  EncoderASet = digitalReadFast(cEncoderPinA);
+  
+  EncoderTicks+=ParseEncoder();
+  
+  if (EncoderTicks > 400){
+      EncoderTicks = 0;
+  }
+  if (EncoderTicks < 0){
+      EncoderTicks = 0;
+  }
+  
+  EncoderAPrev = EncoderASet;
+  EncoderBPrev = EncoderBSet;
+}
+
+void lookup(double rotor_pos) {
+  //SEGMENT 1_________________________________________________________________
+  if(rotor_pos >= segment1_start && rotor_pos < segment1_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 2_________________________________________________________________
+  else if(rotor_pos >= segment2_start && rotor_pos < segment2_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 3_________________________________________________________________
+  else if(rotor_pos >= segment3_start && rotor_pos < segment3_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 4_________________________________________________________________
+  else if(rotor_pos >= segment4_start && rotor_pos < segment4_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 5_________________________________________________________________
+  else if(rotor_pos >= segment5_start && rotor_pos < segment5_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 6_________________________________________________________________
+  else if(rotor_pos >= segment6_start && rotor_pos < segment6_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 7_________________________________________________________________
+  else if(rotor_pos >= segment7_start && rotor_pos < segment7_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;    
+  }
+  //SEGMENT 8_________________________________________________________________
+  else if(rotor_pos >= segment8_start && rotor_pos < segment8_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  else{
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+}
+
+int ParseEncoder(){
+  if(EncoderAPrev && EncoderBPrev){
+    if(!EncoderASet && EncoderBSet) return 1;
+    if(EncoderASet && !EncoderBSet) return -1;
+  }else if(!EncoderAPrev && EncoderBPrev){
+    if(!EncoderASet && !EncoderBSet) return 1;
+    if(EncoderASet && EncoderBSet) return -1;
+  }else if(!EncoderAPrev && !EncoderBPrev){
+    if(EncoderASet && !EncoderBSet) return 1;
+    if(!EncoderASet && EncoderBSet) return -1;
+  }else if(EncoderAPrev && !EncoderBPrev){
+    if(EncoderASet && EncoderBSet) return 1;
+    if(!EncoderASet && !EncoderBSet) return -1;
+  }
+}
