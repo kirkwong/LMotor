@@ -1,0 +1,62 @@
+int PWM_val = 127;
+#define PWM_HIGH          220
+#define PWM_MED           127
+#define PWM_LOW           35
+
+
+#define coil1             10
+#define coil2             11
+
+void setup() {
+    Serial.begin (250000);
+    pinMode(coil1, OUTPUT);
+    pinMode(coil2, OUTPUT);
+    analogWrite(coil1, PWM_MED);
+    analogWrite(coil2, PWM_MED);
+    
+
+}
+
+void loop() {
+
+  analogWrite(coil1, 35);
+  analogWrite(coil2, 127);
+  Serial.print("Coil1, 35");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil2, 35);
+  analogWrite(coil1, 127);
+  Serial.print("Coil2, 35");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil1, 220);
+  analogWrite(coil2, 127);
+  Serial.print("Coil1, 220");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil2, 220);
+  analogWrite(coil1, 127);
+  Serial.print("Coil2, 220");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil1, 35);
+  analogWrite(coil2, 127);
+  Serial.print("Coil1, 35");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil2, 35);
+  analogWrite(coil1, 127);
+  Serial.print("Coil2, 35");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil1, 220);
+  analogWrite(coil2, 127);
+  Serial.print("Coil1, 220");
+  Serial.print("\n");
+  delay(2000);
+  analogWrite(coil2, 220);
+  analogWrite(coil1, 127);
+  Serial.print("Coil2, 220");
+  Serial.print("\n");
+  delay(2000);
+}
