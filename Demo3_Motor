@@ -1,23 +1,17 @@
 #include "Arduino.h"
-    
-    #define LATCHPIN 6  // PLN
-    #define STCP 2  
-    #define CLOCKPIN 3  //SHCP
-    #define Resetpin 4 // MR
-    #define datapin 5  // Q
-    //#define E6 6   
-    #define RSTN 7  
-    #define E8 8   
-    #define OEN 9  
-    #define SEL_1 12    
 
-    int incoming;
-    int incoming2;
-    int EncoderCount;
-    int msb;
+// Shift Register Pins CD74HCT597
+#define LATCHPIN 6  // PLN
+#define STCP 2  
+#define CLOCKPIN 3  //SHCP
+#define Resetpin 4 // MR
+#define datapin 5  // Q
 
-    //control
-    
+// Decoder Pins
+#define RSTN 7  
+#define E8 8  // UD 
+#define OEN 9  
+#define SEL_1 12    
 
 #define segment1_start    0
 #define segment1_end      1
@@ -39,19 +33,23 @@
 #define PWM_HIGH          220
 #define PWM_MED           127
 #define PWM_LOW           35
+#define coil1             10
+#define coil2             11
+
+int incoming;
+int incoming2;
+int EncoderCount;
+int msb;
 
 int arr[3] = {0,0,0};
 
-double setpoint_pos = 7;
+double setpoint_pos = 0;
 double actual_pos = 0;
 double error = 0;
 double PWM_percent = 0;
 double max_error = 2;
 
 int PWM_val = 127;
-
-#define coil1             10
-#define coil2             11
      
 void setup() {
 
@@ -73,124 +71,120 @@ void setup() {
     pinMode(OEN, OUTPUT); // OEN
     pinMode(SEL_1, OUTPUT); // SEL_1
 
-
     digitalWrite(Resetpin, LOW); //Clear the register
     digitalWrite(RSTN, LOW); // Reset the counter
 
     Serial.begin (250000);
-    Serial.print("The counter is reading up (1) or down (0)");
-    
+    Serial.print("The counter is reading up (1) or down (0)");    
     Serial.println(E8, BIN);
 
     // COntrols for the Decoder 
-      digitalWrite(RSTN, HIGH);  // RSTN          
-      digitalWrite(OEN, LOW);   // OEN
-      digitalWrite(SEL_1, HIGH); // SEL_1
-
-      // Controls for the Shiftregister
-      // set initial states while holding reset         
-        digitalWrite(CLOCKPIN, LOW); 
-        digitalWrite(LATCHPIN, HIGH); 
-        digitalWrite(STCP, LOW);  
-        // come out of reset
-        
-        delay(5);
-
-        digitalWrite(Resetpin, HIGH); 
-       
-        delay(5);
+    digitalWrite(RSTN, HIGH);  // RSTN          
+    digitalWrite(OEN, LOW);   // OEN
+    digitalWrite(SEL_1, HIGH); // SEL_1
+    
+    // Controls for the Shiftregister
+    // set initial states while holding reset         
+    digitalWrite(CLOCKPIN, LOW); 
+    digitalWrite(LATCHPIN, HIGH); 
+    digitalWrite(STCP, LOW);  
+    // come out of reset
+    
+    delay(5);    
+    digitalWrite(Resetpin, HIGH);     
+    delay(5);
 
 }
  
 void loop() { 
-        // load data to input flip-flops
-        digitalWrite(LATCHPIN, LOW);
-        delay(10); 
-        digitalWrite(LATCHPIN, HIGH); 
-        
-        // transfer data to shift register
-        digitalWrite(STCP, HIGH);
-        delay(10); 
-        digitalWrite(STCP, LOW); 
-
-        msb = digitalRead(datapin);
-        
-        incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST);
-        //incoming2 = shiftIn(datapin, CLOCKPIN, MSBFIRST);  
-        //EncoderCount = incoming >> 1;        
-
-        msb = msb << 8;
-        incoming2 = msb + incoming;
-        incoming2 = incoming2 >> 1;
-        if((incoming2 >= 250) && (!digitalRead(E8))){
-          incoming = 0;
-        }
- 
-//        Serial.print("Binary: ");
-//        Serial.print(incoming2, BIN);
-        
-//        Serial.print(" Decimal: ");
-//        Serial.print(incoming2);
-
-  actual_pos = (incoming2 * 0.75)/10;
-  lookup(actual_pos); //check which coil to turn on
-  error = setpoint_pos - actual_pos; //calculate the error
-  
-  PWM_percent = abs(error) / max_error;
-  PWM_percent = constrain(PWM_percent, 0, 1);
-
-  Serial.print(" Percent: ");
-  Serial.print(PWM_percent);
-
-  if(error <  -0.75) {
-    if(arr[1] == 0){ // CCW
-      PWM_val = (PWM_percent * (-30)) + 64;
+    // load data to input flip-flops
+    digitalWrite(LATCHPIN, LOW);
+    delay(10); 
+    digitalWrite(LATCHPIN, HIGH); 
+    
+    // transfer data to shift register
+    digitalWrite(STCP, HIGH);
+    delay(10); 
+    digitalWrite(STCP, LOW); 
+    
+    msb = digitalRead(datapin);    
+    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST);      
+    
+    msb = msb << 8;
+    incoming2 = msb + incoming;
+    incoming2 = incoming2 >> 1;
+    if((incoming2 >= 250) && (!digitalRead(E8))){
+    incoming = 0;
     }
-    else if(arr[1] == 1) { //CW
-      PWM_val = (PWM_percent * 30) + 190;
+    
+    //        Serial.print("Binary: ");
+    //        Serial.print(incoming2, BIN);
+    
+    //        Serial.print(" Decimal: ");
+    //        Serial.print(incoming2);
+
+    setpoint_pos = analogRead(0);
+    setpoint_pos = (setpoint_pos/1023.0)*13.0;
+    Serial.print(" Set: ");
+    Serial.print(setpoint_pos);
+    
+    actual_pos = (incoming2 * 0.75)/10;
+    lookup(actual_pos); //check which coil to turn on
+    error = setpoint_pos - actual_pos; //calculate the error
+    
+    PWM_percent = abs(error) / max_error;
+    PWM_percent = constrain(PWM_percent, 0, 1);
+    
+    Serial.print(" Percent: ");
+    Serial.print(PWM_percent);
+    
+    if(error <  -0.75) {
+      if(arr[1] == 0){ // CCW
+        PWM_val = (PWM_percent * (-30)) + 64;
+      }
+      else if(arr[1] == 1) { //CW
+        PWM_val = (PWM_percent * 30) + 190;
+      }
+      else PWM_val = PWM_MED;
+    } 
+    else if(error > 0.75) {
+      if(arr[2] == 0){ // CCW
+        PWM_val = (PWM_percent * (-30)) + 64;
+      }
+      else if(arr[2] == 1) { //CW
+        PWM_val = (PWM_percent * 30) + 190;
+      }
+      else PWM_val = PWM_MED;
     }
     else PWM_val = PWM_MED;
-  } 
-  else if(error > 0.75) {
-    if(arr[2] == 0){ // CCW
-      PWM_val = (PWM_percent * (-30)) + 64;
+    
+    if(arr[0] == 1) { // if its Coil 1
+      analogWrite(coil1, PWM_val);
+      analogWrite(coil2, PWM_MED);
     }
-    else if(arr[2] == 1) { //CW
-      PWM_val = (PWM_percent * 30) + 190;
+    else if(arr[0] == 2) { // if its Coil 2
+      analogWrite(coil2, PWM_val);
+      analogWrite(coil1, PWM_MED);
     }
-    else PWM_val = PWM_MED;
-  }
-  else PWM_val = PWM_MED;
-
-  if(arr[0] == 1) { // if its Coil 1
-    analogWrite(coil1, PWM_val);
-    analogWrite(coil2, PWM_MED);
-  }
-  else if(arr[0] == 2) { // if its Coil 2
-    analogWrite(coil2, PWM_val);
-    analogWrite(coil1, PWM_MED);
-  }
-  else{
-    analogWrite(coil1, PWM_MED);
-    analogWrite(coil2, PWM_MED);
-  }
-
-  Serial.print(" Actual: ");
-  Serial.print(actual_pos);
-  Serial.print(" Error: ");
-  Serial.print(error);
-  Serial.print(" PWM: ");
-  Serial.print(PWM_val);
-  Serial.print(" ");
-  for(int i = 0; i < 3; i++)
-  {
-    Serial.print(arr[i]);
-  }  
-  Serial.print("\n");
+    else{
+      analogWrite(coil1, PWM_MED);
+      analogWrite(coil2, PWM_MED);
+    }
+    
+    Serial.print(" Actual: ");
+    Serial.print(actual_pos);
+    Serial.print(" Error: ");
+    Serial.print(error);
+    Serial.print(" PWM: ");
+    Serial.print(PWM_val);
+    Serial.print(" ");
+    for(int i = 0; i < 3; i++)
+    {
+      Serial.print(arr[i]);
+    }  
+    Serial.print("\n");
 
 }
-
-
 
 void lookup(double rotor_pos) {
   //SEGMENT 1_________________________________________________________________
