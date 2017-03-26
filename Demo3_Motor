@@ -9,7 +9,6 @@
 
 // Decoder Pins
 #define RSTN 7  
-#define E8 8  // UD 
 #define OEN 9  
 #define SEL_1 12    
 
@@ -48,7 +47,7 @@ double PWM_percent = 0;
 
 //Values that change
 double setpoint_pos = 0;
-double max_error = 2;
+double max_error = 2.15;
      
 void setup() {
     Serial.begin (250000);
@@ -108,9 +107,10 @@ void loop() {
     msb = msb << 8;
     EncoderTicks = msb + incoming;
     EncoderTicks = EncoderTicks >> 1;
-    if((EncoderTicks >= 250) && (!digitalRead(E8))){
-      incoming = 0;
+    if(EncoderTicks >= 220){
+      EncoderTicks = 0;
     }
+    EncoderTicks = constrain(EncoderTicks, 0, 255);
 
     // Setpoint controlled by potentiometer
     setpoint_pos = analogRead(0);
@@ -128,7 +128,7 @@ void loop() {
     Serial.print(" Percent: ");
     Serial.print(PWM_percent);
     
-    if(error <  -0.75) {
+    if(error <  -0.5) {
       if(arr[1] == 0){ // CCW
         PWM_val = (PWM_percent * (-30)) + 64;
       }
@@ -137,7 +137,7 @@ void loop() {
       }
       else PWM_val = PWM_MED;
     } 
-    else if(error > 0.75) {
+    else if(error > 0.5) {
       if(arr[2] == 0){ // CCW
         PWM_val = (PWM_percent * (-30)) + 64;
       }
