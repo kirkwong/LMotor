@@ -42,9 +42,11 @@
 
 int arr[3] = {0,0,0};
 
-double setpoint_pos = 11;
+double setpoint_pos = 7;
 double actual_pos = 0;
 double error = 0;
+double PWM_percent = 0;
+double max_error = 2;
 
 int PWM_val = 127;
 
@@ -127,28 +129,34 @@ void loop() {
 //        Serial.print("Binary: ");
 //        Serial.print(incoming2, BIN);
         
-        Serial.print(" Decimal: ");
-        Serial.print(incoming2);
+//        Serial.print(" Decimal: ");
+//        Serial.print(incoming2);
 
-        actual_pos = (incoming2 * 0.75)/10;
-        lookup(actual_pos); //check which coil to turn on
-        error = setpoint_pos - actual_pos; //calculate the error
+  actual_pos = (incoming2 * 0.75)/10;
+  lookup(actual_pos); //check which coil to turn on
+  error = setpoint_pos - actual_pos; //calculate the error
+  
+  PWM_percent = abs(error) / max_error;
+  PWM_percent = constrain(PWM_percent, 0, 1);
 
-  if(error <  0) {
+  Serial.print(" Percent: ");
+  Serial.print(PWM_percent);
+
+  if(error <  -0.75) {
     if(arr[1] == 0){ // CCW
-      PWM_val = PWM_LOW;
+      PWM_val = (PWM_percent * (-30)) + 64;
     }
     else if(arr[1] == 1) { //CW
-      PWM_val = PWM_HIGH;
+      PWM_val = (PWM_percent * 30) + 190;
     }
     else PWM_val = PWM_MED;
   } 
-  else if(error > 0) {
+  else if(error > 0.75) {
     if(arr[2] == 0){ // CCW
-      PWM_val = PWM_LOW;
+      PWM_val = (PWM_percent * (-30)) + 64;
     }
     else if(arr[2] == 1) { //CW
-      PWM_val = PWM_HIGH;
+      PWM_val = (PWM_percent * 30) + 190;
     }
     else PWM_val = PWM_MED;
   }
