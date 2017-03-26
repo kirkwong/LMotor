@@ -37,22 +37,21 @@
 #define coil2             11
 
 int incoming;
-int incoming2;
-int EncoderCount;
+int EncoderTicks;
 int msb;
+int PWM_val = 127;
 
 int arr[3] = {0,0,0};
-
-double setpoint_pos = 0;
 double actual_pos = 0;
 double error = 0;
 double PWM_percent = 0;
-double max_error = 2;
 
-int PWM_val = 127;
+//Values that change
+double setpoint_pos = 0;
+double max_error = 2;
      
 void setup() {
-
+    Serial.begin (250000);
     pinMode(coil1, OUTPUT);
     pinMode(coil2, OUTPUT);
     analogWrite(coil1, PWM_MED);
@@ -74,11 +73,7 @@ void setup() {
     digitalWrite(Resetpin, LOW); //Clear the register
     digitalWrite(RSTN, LOW); // Reset the counter
 
-    Serial.begin (250000);
-    Serial.print("The counter is reading up (1) or down (0)");    
-    Serial.println(E8, BIN);
-
-    // COntrols for the Decoder 
+    // Controls for the Decoder 
     digitalWrite(RSTN, HIGH);  // RSTN          
     digitalWrite(OEN, LOW);   // OEN
     digitalWrite(SEL_1, HIGH); // SEL_1
@@ -108,32 +103,27 @@ void loop() {
     digitalWrite(STCP, LOW); 
     
     msb = digitalRead(datapin);    
-    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST);      
+    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST); //Taking the shift register values     
     
     msb = msb << 8;
-    incoming2 = msb + incoming;
-    incoming2 = incoming2 >> 1;
-    if((incoming2 >= 250) && (!digitalRead(E8))){
-    incoming = 0;
+    EncoderTicks = msb + incoming;
+    EncoderTicks = EncoderTicks >> 1;
+    if((EncoderTicks >= 250) && (!digitalRead(E8))){
+      incoming = 0;
     }
-    
-    //        Serial.print("Binary: ");
-    //        Serial.print(incoming2, BIN);
-    
-    //        Serial.print(" Decimal: ");
-    //        Serial.print(incoming2);
 
+    // Setpoint controlled by potentiometer
     setpoint_pos = analogRead(0);
     setpoint_pos = (setpoint_pos/1023.0)*13.0;
     Serial.print(" Set: ");
     Serial.print(setpoint_pos);
     
-    actual_pos = (incoming2 * 0.75)/10;
+    actual_pos = (EncoderTicks * 0.75)/10; // 0.75mm per count | actual_pos is in cm
     lookup(actual_pos); //check which coil to turn on
     error = setpoint_pos - actual_pos; //calculate the error
     
-    PWM_percent = abs(error) / max_error;
-    PWM_percent = constrain(PWM_percent, 0, 1);
+    PWM_percent = abs(error) / max_error; //scaling the error value for PWM
+    PWM_percent = constrain(PWM_percent, 0, 1); //PWM value will only scale if error is less than max_error 
     
     Serial.print(" Percent: ");
     Serial.print(PWM_percent);
