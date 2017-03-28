@@ -58,6 +58,7 @@ int EncoderTicks2 = 0;
 double P[2] = {0, 0};
 double deltaQ = 0;
 double L = 0; // joint length
+double distance = 0; // distance from motor to origin
 int nextP = 0; // Flag to keep track of [X,Y]
 
 //Values that change
@@ -141,14 +142,14 @@ void loop() {
     Q1 = X - deltaQ;
     Q2 = X + deltaQ;    
     
-    setpoint_pos1 = Q1;
-    setpoint_pos2 = Q2;
+    setpoint_pos1 = Q1 + distance;
+    setpoint_pos2 = distance - Q2;
     
     EncoderTicks1 = Decoder(LATCHPIN1, STCP1, datapin1, CLOCKPIN1);
     EncoderTicks2 = Decoder(LATCHPIN2, STCP2, datapin2, CLOCKPIN2);
     
-    actual_pos1 = (EncoderTicks1 * 0.75)/10; // 0.75mm per count | actual_pos is in cm
-    actual_pos2 = (EncoderTicks2 * 0.75)/10; // 0.75mm per count | actual_pos is in cm
+    actual_pos1 = (double(EncoderTicks1) * 0.75)/10; // 0.75mm per count | actual_pos is in cm
+    actual_pos2 = (double(EncoderTicks2) * 0.75)/10; // 0.75mm per count | actual_pos is in cm
 
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
@@ -156,7 +157,7 @@ void loop() {
     MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
     MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
 
-    if ((actual_pos1 == setpoint_pos1) && (actual_pos2 == setpoint_pos2)){ // Next P[X,Y] once both motor joint positions are correct
+    if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ // Next P[X,Y] once both motor joint positions are correct
       nextP++;
       if (nextP >= 4){
         nextP = 0;
