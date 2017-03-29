@@ -1,0 +1,247 @@
+#include "Arduino.h"
+
+// Shift Register Pins CD74HCT597
+#define LATCHPIN    44    //6  // PLN
+#define STCP        46         //2  
+#define CLOCKPIN    48        //3  //SHCP
+#define Resetpin    50         //4 // MR
+#define datapin     52       //5  // Q
+
+// Decoder Pins
+#define RSTN        53      //7  
+#define OEN         51      //9  
+#define SEL_1       49      //12   
+
+#define segment1_start    0
+#define segment1_end      1
+#define segment2_start    1
+#define segment2_end      3
+#define segment3_start    3
+#define segment3_end      5
+#define segment4_start    5
+#define segment4_end      7
+#define segment5_start    7
+#define segment5_end      9
+#define segment6_start    9
+#define segment6_end      11
+#define segment7_start    11
+#define segment7_end      13
+#define segment8_start    13
+#define segment8_end      15
+
+#define PWM_HIGH          220
+#define PWM_MED           127
+#define PWM_LOW           35
+
+#define c1_dir            12
+#define c1_en             11  
+#define c2_dir            10
+#define c2_en             9
+
+int incoming;
+int EncoderTicks;
+int msb;
+int PWM_val = 127;
+int PWM_dir = 0;
+
+int arr[3] = {0,0,0};
+double actual_pos = 0;
+double error = 0;
+double PWM_percent = 0;
+
+//Values that change
+double setpoint_pos = 0;
+double max_error = 2.15;
+     
+void setup() {
+    Serial.begin (250000);
+    pinMode(c1_en, OUTPUT);
+    pinMode(c2_en, OUTPUT);
+    pinMode(c1_dir, OUTPUT);
+    pinMode(c2_dir, OUTPUT);
+    analogWrite(c1_en, 0);
+    analogWrite(c2_en, 0);
+
+    // PINS for the ShiftRegister
+    pinMode(LATCHPIN, OUTPUT); // PLN
+    pinMode(STCP, OUTPUT); // STCP
+    pinMode(CLOCKPIN, OUTPUT); // SHCP
+    pinMode(Resetpin, OUTPUT); // MR
+    pinMode(datapin, INPUT); // Q
+
+    // PINS for the Decoder
+    pinMode(RSTN, OUTPUT); // RSTN
+    //pinMode(E8, INPUT); // U/D
+    pinMode(OEN, OUTPUT); // OEN
+    pinMode(SEL_1, OUTPUT); // SEL_1
+
+    digitalWrite(Resetpin, LOW); //Clear the register
+    digitalWrite(RSTN, LOW); // Reset the counter
+
+    // Controls for the Decoder 
+    digitalWrite(RSTN, HIGH);  // RSTN          
+    digitalWrite(OEN, LOW);   // OEN
+    digitalWrite(SEL_1, HIGH); // SEL_1
+    
+    // Controls for the Shiftregister
+    // set initial states while holding reset         
+    digitalWrite(CLOCKPIN, LOW); 
+    digitalWrite(LATCHPIN, HIGH); 
+    digitalWrite(STCP, LOW);  
+    // come out of reset
+    
+    delay(5);    
+    digitalWrite(Resetpin, HIGH);     
+    delay(5);
+
+}
+ 
+void loop() { 
+    // load data to input flip-flops
+    digitalWrite(LATCHPIN, LOW);
+    delay(10); 
+    digitalWrite(LATCHPIN, HIGH); 
+    
+    // transfer data to shift register
+    digitalWrite(STCP, HIGH);
+    delay(10); 
+    digitalWrite(STCP, LOW); 
+    
+    msb = digitalRead(datapin);    
+    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST); //Taking the shift register values     
+    
+    msb = msb << 8;
+    EncoderTicks = msb + incoming;
+    EncoderTicks = EncoderTicks >> 1;
+    if(EncoderTicks >= 220){
+      EncoderTicks = 0;
+    }
+    EncoderTicks = constrain(EncoderTicks, 0, 255);
+
+    // Setpoint controlled by potentiometer
+    setpoint_pos = analogRead(0);
+    setpoint_pos = (setpoint_pos/1023.0)*13.0;
+    Serial.print(" Set: ");
+    Serial.print(setpoint_pos);
+    
+    actual_pos = (EncoderTicks * 0.75)/10; // 0.75mm per count | actual_pos is in cm
+    lookup(actual_pos); //check which coil to turn on
+    error = setpoint_pos - actual_pos; //calculate the error
+    
+    PWM_percent = abs(error) / max_error; //scaling the error value for PWM
+    PWM_percent = constrain(PWM_percent, 0, 1); //PWM value will only scale if error is less than max_error 
+    
+    Serial.print(" Percent: ");
+    Serial.print(PWM_percent);
+    
+    if(error <  -0.5) {
+      if(arr[1] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
+      }
+      else if(arr[1] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
+      }
+      else PWM_val = 0;
+    } 
+    else if(error > 0.5) {
+      if(arr[2] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
+      }
+      else if(arr[2] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
+      }
+      else PWM_val = 0;
+    }
+    else PWM_val = 0;
+    
+    if(arr[0] == 1) { // if its Coil 1
+      analogWrite(c1_en, PWM_val);
+      digitalWrite(c1_dir, PWM_dir);
+      
+      analogWrite(c2_en, 0);
+    }
+    else if(arr[0] == 2) { // if its Coil 2
+      analogWrite(c2_en, PWM_val);
+      digitalWrite(c2_dir, PWM_dir);
+      
+      analogWrite(c1_en, 0);
+    }
+    else{
+      analogWrite(c1_en, 0);
+      analogWrite(c2_en, 0);
+    }
+    
+    Serial.print(" Actual: ");
+    Serial.print(actual_pos);
+    Serial.print(" Error: ");
+    Serial.print(error);
+    Serial.print(" PWM: ");
+    Serial.print(PWM_val);
+    Serial.print(" ");
+    for(int i = 0; i < 3; i++)
+    {
+      Serial.print(arr[i]);
+    }  
+    Serial.print("\n");
+
+}
+
+void lookup(double rotor_pos) {
+  //SEGMENT 1_________________________________________________________________
+  if(rotor_pos >= segment1_start && rotor_pos < segment1_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 2_________________________________________________________________
+  else if(rotor_pos >= segment2_start && rotor_pos < segment2_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 3_________________________________________________________________
+  else if(rotor_pos >= segment3_start && rotor_pos < segment3_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 4_________________________________________________________________
+  else if(rotor_pos >= segment4_start && rotor_pos < segment4_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 5_________________________________________________________________
+  else if(rotor_pos >= segment5_start && rotor_pos < segment5_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 6_________________________________________________________________
+  else if(rotor_pos >= segment6_start && rotor_pos < segment6_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 7_________________________________________________________________
+  else if(rotor_pos >= segment7_start && rotor_pos < segment7_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;    
+  }
+  //SEGMENT 8_________________________________________________________________
+  else if(rotor_pos >= segment8_start && rotor_pos < segment8_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  else{
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+}
