@@ -1,0 +1,90 @@
+#include <math.h>
+
+double deltaQ = 0.0;
+double q1x = -4.0;
+double q1y = 3.0; //fixed value
+double q2x = 3.0; //fixed value
+double q2y = 4.0;
+
+double theta = 0;
+double alpha = 0;
+double beta = 0;
+double phi = 0;
+
+double L = 4.5;
+double A = 0;
+double B = 0;
+double C = 0;
+double D = 0;
+double pi = 3.14159;
+double X = 0;
+double Y = 0;
+
+int flag = 0;
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  // FORWARD KINEMATICS
+  deltaQ = sqrt(sq(q2x - q1x)+ sq(q2y - q1y));  
+  theta = asin((q2x - q1x) / deltaQ);    
+  phi = acos(sq(deltaQ)/(2 * L * deltaQ));  
+  alpha = theta - phi;
+  beta = (pi/2) - alpha;    
+  A = L * sin(beta);
+  B = L * sin(alpha);  
+  if (alpha > 0){
+    X = q2x - B;
+  }
+  else{
+    X = q2x + B;
+  }
+  Y = q2y - A;
+   
+  if (flag == 0){
+    Serial.print(" dQ: ");
+    Serial.print(deltaQ);
+    Serial.print(" T: ");
+    Serial.print(theta); 
+    Serial.print(" P: ");
+    Serial.print(phi);
+    Serial.print(" alpha: ");
+    Serial.print(alpha);
+    Serial.print(" A: ");
+    Serial.print(A);
+    Serial.print(" B: ");
+    Serial.print(B);
+    Serial.print(" X: ");
+    Serial.print(X);
+    Serial.print(" Y: ");
+    Serial.print(Y);
+  }
+
+  // INVERSE KINEMATICS
+  B = abs(q2x - X);
+  C = abs(Y - q1y);
+  A = sqrt(abs(sq(L)-sq(B)));
+  D = sqrt(abs(sq(L)-sq(C)));
+
+  q1x = X - D;
+  q2y = Y + A;
+
+  if (flag == 0){
+    Serial.print(" B: ");
+    Serial.print(B);
+    Serial.print(" C: ");
+    Serial.print(C);
+    Serial.print(" A: ");
+    Serial.print(A);  
+    Serial.print(" D: ");
+    Serial.print(D);
+    Serial.print(" q1x: ");
+    Serial.print(q1x);
+    Serial.print(" q2y: ");
+    Serial.print(q2y);
+    Serial.print("\n");
+  }
+  flag++;  
+}
