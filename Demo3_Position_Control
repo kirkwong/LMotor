@@ -1,3 +1,5 @@
+#include <math.h>
+
 // Shift Register Pins CD74HCT597
 #define LATCHPIN1 6  // PLN
 #define STCP1 2  
@@ -54,26 +56,37 @@ double actual_pos1 = 0;
 double actual_pos2 = 0;
 int EncoderTicks1 = 0;
 int EncoderTicks2 = 0;
-
-double P[2] = {0, 0};
-double deltaQ = 0;
-double L = 0; // joint length
-double distance = 0; // distance from motor to origin
-int nextP = 0; // Flag to keep track of [X,Y]
-
-//Values that change
 double setpoint_pos1 = 0;
 double setpoint_pos2 = 0;
+
+double P[2] = {0,0};
+double X = 0;
+double Y = 0;
+int nextP = 0; // Flag to keep track of [X,Y]
+
+//INVERSE KINEMATICS
+double L = 4.5; //joint length
+double distance = 0; //distance from motor to xy axis
+double top_length = 0; //length of the blue top on each rotor
+double q1x = 0.0;
+double q1y = 3.0; //fixed value
+double q2x = 3.0; //fixed value
+double q2y = 0.0;
+
+double A = 0;
+double B = 0;
+double C = 0;
+double D = 0;
      
 void setup() {
     Serial.begin (250000);
     
     pinMode(CoilA, OUTPUT);
     pinMode(CoilB, OUTPUT);
-    analogWrite(CoilA, PWM_MED);
-    analogWrite(CoilB, PWM_MED);
     pinMode(CoilC, OUTPUT);
     pinMode(CoilD, OUTPUT);
+    analogWrite(CoilA, PWM_MED);
+    analogWrite(CoilB, PWM_MED);
     analogWrite(CoilC, PWM_MED);
     analogWrite(CoilD, PWM_MED);
     
@@ -138,18 +151,21 @@ void loop() {
     Y = P[1];
     
     //INVERSE KINEMATICS
-    deltaQ = sqrt(sq(L) - sq(Y));
-    Q1 = X - deltaQ;
-    Q2 = X + deltaQ;    
+    B = abs(q2x - X);
+    C = abs(Y - q1y);
+    A = sqrt(abs(sq(L)-sq(B)));
+    D = sqrt(abs(sq(L)-sq(C)));    
+    q1x = X - D;
+    q2y = Y + A;
     
-    setpoint_pos1 = Q1 + distance;
-    setpoint_pos2 = distance - Q2;
+    setpoint_pos1 = q1x + distance - top_length;
+    setpoint_pos2 = distance - q2y - top_length;
     
     EncoderTicks1 = Decoder(LATCHPIN1, STCP1, datapin1, CLOCKPIN1);
     EncoderTicks2 = Decoder(LATCHPIN2, STCP2, datapin2, CLOCKPIN2);
     
-    actual_pos1 = (double(EncoderTicks1) * 0.75)/10; // 0.75mm per count | actual_pos is in cm
-    actual_pos2 = (double(EncoderTicks2) * 0.75)/10; // 0.75mm per count | actual_pos is in cm
+    actual_pos1 = ((double(EncoderTicks1) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
+    actual_pos2 = ((double(EncoderTicks2) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
 
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
@@ -157,7 +173,8 @@ void loop() {
     MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
     MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
 
-    if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ // Next P[X,Y] once both motor joint positions are correct
+    // Next P[X,Y] once both motor joint positions are correct
+    if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ 
       nextP++;
       if (nextP >= 4){
         nextP = 0;
@@ -165,6 +182,8 @@ void loop() {
     }
 }
 
+// Rotating through defined XY positions
+// Current shape = Rectangle
 void XY_Position (int next_P, double P_array[]){
   if (next_P == 0){
     P_array[0] = -3;
