@@ -1,0 +1,174 @@
+// Shift Register Pins CD74HCT597
+#define LATCHPIN1 6  // PLN
+#define STCP1 2  
+#define CLOCKPIN1 3  //SHCP
+#define Resetpin1 4 // MR
+#define datapin1 5  // Q
+
+#define LATCHPIN2 15  // PLN
+#define STCP2 16  
+#define CLOCKPIN2 17  //SHCP
+#define Resetpin2 18 // MR
+#define datapin2 19  // Q
+
+// Decoder Pins
+#define RSTN1 7  
+#define OEN1 9  
+#define SEL1 12    
+
+#define RSTN2 20  
+#define OEN2 21  
+#define SEL2 22  
+
+int EncoderTicks1;
+int EncoderTicks2;
+int PWM_val = 127;
+double actual_pos1 = 0;
+double actual_pos2 = 0;
+double top_length = 0;
+double distance = 0;
+
+double deltaQ = 0.0;
+double q1x = -4.0;
+double q1y = 3.0; //fixed value
+double q2x = 3.0; //fixed value
+double q2y = 4.0;
+
+double theta = 0;
+double alpha = 0;
+double beta = 0;
+double phi = 0;
+
+double L = 4.5;
+double A = 0;
+double B = 0;
+double C = 0;
+double D = 0;
+double pi = 3.14159;
+double X = 0;
+double Y = 0;
+
+
+void setup() {
+// PINS for the ShiftRegister
+    pinMode(LATCHPIN1, OUTPUT); // PLN
+    pinMode(STCP1, OUTPUT); // STCP
+    pinMode(CLOCKPIN1, OUTPUT); // SHCP
+    pinMode(Resetpin1, OUTPUT); // MR
+    pinMode(datapin1, INPUT); // Q
+
+    pinMode(LATCHPIN2, OUTPUT); // PLN
+    pinMode(STCP2, OUTPUT); // STCP
+    pinMode(CLOCKPIN2, OUTPUT); // SHCP
+    pinMode(Resetpin2, OUTPUT); // MR
+    pinMode(datapin2, INPUT); // Q
+
+    // PINS for the Decoder
+    pinMode(RSTN1, OUTPUT); // RSTN
+    pinMode(OEN1, OUTPUT); // OEN
+    pinMode(SEL1, OUTPUT); // SEL1
+
+    pinMode(RSTN2, OUTPUT); // RSTN
+    pinMode(OEN2, OUTPUT); // OEN
+    pinMode(SEL2, OUTPUT); // SEL2
+
+    digitalWrite(Resetpin1, LOW); //Clear the register
+    digitalWrite(RSTN1, LOW); // Reset the counter
+
+    digitalWrite(Resetpin2, LOW); //Clear the register
+    digitalWrite(RSTN2, LOW); // Reset the counter
+
+    // Controls for the Decoder 
+    digitalWrite(RSTN1, HIGH);  // RSTN          
+    digitalWrite(OEN1, LOW);   // OEN
+    digitalWrite(SEL1, HIGH); // SEL1
+
+    digitalWrite(RSTN2, HIGH);  // RSTN          
+    digitalWrite(OEN2, LOW);   // OEN
+    digitalWrite(SEL2, HIGH); // SEL2
+    
+    // Controls for the Shiftregister
+    // set initial states while holding reset         
+    digitalWrite(CLOCKPIN1, LOW); 
+    digitalWrite(LATCHPIN1, HIGH); 
+    digitalWrite(STCP1, LOW);  
+
+    digitalWrite(CLOCKPIN2, LOW); 
+    digitalWrite(LATCHPIN2, HIGH); 
+    digitalWrite(STCP2, LOW);  
+    // come out of reset
+    
+    delay(5);    
+    digitalWrite(Resetpin1, HIGH);  
+    digitalWrite(Resetpin2, HIGH);   
+    delay(5);
+}
+
+void loop() {
+    EncoderTicks1 = Decoder(LATCHPIN1, STCP1, datapin1, CLOCKPIN1);
+    EncoderTicks2 = Decoder(LATCHPIN2, STCP2, datapin2, CLOCKPIN2);
+    actual_pos1 = ((double(EncoderTicks1) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
+    actual_pos2 = ((double(EncoderTicks2) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
+
+    q1x = (-1 * distance) + actual_pos1;
+    q2y = distance - actual_pos2;
+    
+    //FORWARD KINEMATICS
+    deltaQ = sqrt(sq(q2x - q1x)+ sq(q2y - q1y));  
+    theta = asin((q2x - q1x) / deltaQ);    
+    phi = acos(sq(deltaQ)/(2 * L * deltaQ));  
+    alpha = theta - phi;
+    beta = (pi/2) - alpha;    
+    A = L * sin(beta);
+    B = L * sin(alpha);  
+    if (alpha > 0){
+      X = q2x - B;
+    }
+    else{
+      X = q2x + B;
+    }
+    Y = q2y - A;
+
+    Serial.print(" Actual1: ");
+    Serial.print(actual_pos1);
+    Serial.print(" Actual2: ");
+    Serial.print(actual_pos2);
+    Serial.print(" q1x: ");
+    Serial.print(q1x);
+    Serial.print(" q2y: ");
+    Serial.print(q2y); 
+    Serial.print(" X: ");
+    Serial.print(X);
+    Serial.print(" Y: ");
+    Serial.print(Y); 
+}
+
+// DECODER function to find EncoderTicks for each Motor
+int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
+    int incoming;
+    int EncoderTicks;
+    int msb;
+    
+    // load data to input flip-flops
+    digitalWrite(LATCHPIN, LOW);
+    delay(10); 
+    digitalWrite(LATCHPIN, HIGH); 
+    
+    // transfer data to shift register
+    digitalWrite(STCP, HIGH);
+    delay(10); 
+    digitalWrite(STCP, LOW); 
+    
+    msb = digitalRead(datapin);    
+    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST); //Taking the shift register values     
+    
+    msb = msb << 8;
+    EncoderTicks = msb + incoming;
+    EncoderTicks = EncoderTicks >> 1;
+    if(EncoderTicks >= 220){
+      EncoderTicks = 0;
+    }
+    EncoderTicks = constrain(EncoderTicks, 0, 255);
+
+    return EncoderTicks;
+}
