@@ -181,9 +181,9 @@ void loop() {
 }
 
 void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
-    double Xmin = 3.0;
+    double Xmin = 5.0;
     double Xmax = 13.0;
-    double Ymin = -3.0;
+    double Ymin = -5.0;
     double Ymax = -13.0;
     
     //Segment 1
