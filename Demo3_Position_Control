@@ -182,11 +182,11 @@ void loop() {
 // Current shape = Rectangle
 void XY_Position (int next_P, double P_array[]){
   if (next_P == 0){
-    P_array[0] = 3;
-    P_array[1] = -3;
+    P_array[0] = 5;
+    P_array[1] = -5;
   }
   else if (next_P == 1){
-    P_array[0] = 3;
+    P_array[0] = 5;
     P_array[1] = -13;
   }
   else if (next_P == 2){
@@ -195,11 +195,11 @@ void XY_Position (int next_P, double P_array[]){
   }
   else if (next_P == 3){
     P_array[0] = 13;
-    P_array[1] = -3;
+    P_array[1] = -5;
   }
   else {
-    P_array[0] = 3;
-    P_array[1] = -3;
+    P_array[0] = 5;
+    P_array[1] = -5;
   }
 }
 
