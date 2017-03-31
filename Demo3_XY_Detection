@@ -25,21 +25,23 @@ int EncoderTicks2;
 int PWM_val = 127;
 double actual_pos1 = 0;
 double actual_pos2 = 0;
-double top_length = 0;
-double distance = 0;
+double top_length = 4.7;
+double distance = 17.0;
 
 double deltaQ = 0.0;
-double q1x = -4.0;
-double q1y = 3.0; //fixed value
-double q2x = 3.0; //fixed value
-double q2y = 4.0;
+double q1x = 0.0;
+double q1y = -5.0; //fixed value
+double q2x = 5.0; //fixed value
+double q2y = 0.0;
+double q1d = 0;
+double q2d = 0;
 
 double theta = 0;
 double alpha = 0;
 double beta = 0;
 double phi = 0;
 
-double L = 4.5;
+double L = 16.5;
 double A = 0;
 double B = 0;
 double C = 0;
@@ -107,11 +109,14 @@ void setup() {
 void loop() {
     EncoderTicks1 = Decoder(LATCHPIN1, STCP1, datapin1, CLOCKPIN1);
     EncoderTicks2 = Decoder(LATCHPIN2, STCP2, datapin2, CLOCKPIN2);
-    actual_pos1 = ((double(EncoderTicks1) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
-    actual_pos2 = ((double(EncoderTicks2) * 0.75)/10) + top_length; // 0.75mm per count | actual_pos is in cm
+    actual_pos1 = ((double(EncoderTicks1) * 0.75)/10); // 0.75mm per count | actual_pos is in cm
+    actual_pos2 = ((double(EncoderTicks2) * 0.75)/10); // 0.75mm per count | actual_pos is in cm
 
-    q1x = (-1 * distance) + actual_pos1;
-    q2y = distance - actual_pos2;
+    q1d = actual_pos1 + top_length;
+    q2d = actual_pos2 + top_length;
+
+    q1x = (-1 * distance) + q1d;
+    q2y = distance - q2d;
     
     //FORWARD KINEMATICS
     deltaQ = sqrt(sq(q2x - q1x)+ sq(q2y - q1y));  
