@@ -46,8 +46,6 @@
 #define IN                1
 #define OUT               2
 #define STOP              3
-#define HALF_IN           4
-#define HALF_OUT          5
 
 #define MOTOR1 1
 #define MOTOR2 2
@@ -71,12 +69,12 @@ double Y = 0;
 int nextP = 0; // Flag to keep track of [X,Y]
 
 //INVERSE KINEMATICS
-double L = 4.5; //joint length
-double distance = 0; //distance from motor to xy axis
-double top_length = 0; //length of the blue top on each rotor
+double L = 16.5; //joint length
+double distance = 17; //distance from motor to xy axis
+double top_length = 4.7; //length of the blue top on each rotor
 double q1x = 0.0;
-double q1y = 3.0; //fixed value
-double q2x = 3.0; //fixed value
+double q1y = -5.0; //fixed value
+double q2x = 5.0; //fixed value
 double q2y = 0.0;
 double q1d = 0.0;
 double q2d = 0.0;
@@ -187,10 +185,10 @@ void loop() {
 }
 
 void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
-    double Xmin = 1.0;
-    double Xmax = 3.0;
-    double Ymin = -3.0;
-    double Ymax = -1.0;
+    double Xmin = 5.0;
+    double Xmax = 15.0;
+    double Ymin = -15.0;
+    double Ymax = -5.0;
     
     //Segment 1
     if (X_pos < Xmin && Y_pos > Ymax){
@@ -205,7 +203,7 @@ void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
     //Segment 3
     else if (X_pos > Xmax && Y_pos > Ymax){
       MoveMotor_Haptic(MOTOR1, IN, arry1);
-      MoveMotor_Haptic(MOTOR2, HALF_OUT, arry2);
+      MoveMotor_Haptic(MOTOR2, OUT, arry2);
     }
     //Segment 4
     else if (X_pos < Xmin && Y_pos > Ymin && Y_pos < Ymax){
@@ -224,7 +222,7 @@ void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
     }
     //Segment 7
     else if (X_pos < Xmin && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, HALF_OUT, arry1);
+      MoveMotor_Haptic(MOTOR1, OUT, arry1);
       MoveMotor_Haptic(MOTOR2, IN, arry2);
     }
     //Segment 8
@@ -307,24 +305,6 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     }
     else if (Dir == 3){ //if STOP
       PWM_val = PWM_MED;
-    }
-    else if (Dir == 4){ //if HALF_IN
-      if(arry[1] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
-      }
-      else if(arry[1] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
-      }
-      else PWM_val = PWM_MED;
-    }
-    else if (Dir == 5){ //if HALF_OUT
-      if(arry[2] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
-      }
-      else if(arry[2] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
-      }
-      else PWM_val = PWM_MED;
     }
     else PWM_val = PWM_MED;
 
