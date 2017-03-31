@@ -183,10 +183,10 @@ void loop() {
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
 
-    HapticSegment(X, Y);
+    HapticSegment(X, Y, arr1, arr2);
 }
 
-void HapticSegment (double X_pos, double Y_pos){
+void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
     double Xmin = 1.0;
     double Xmax = 3.0;
     double Ymin = -3.0;
@@ -194,52 +194,52 @@ void HapticSegment (double X_pos, double Y_pos){
     
     //Segment 1
     if (X_pos < Xmin && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, OUT, arr1);
-      MoveMotor_Haptic(MOTOR2, OUT, arr1);
+      MoveMotor_Haptic(MOTOR1, OUT, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, arry2);
     }
     //Segment 2
     else if (X_pos > Xmin && X_pos < Xmax && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, STOP, arr1);
-      MoveMotor_Haptic(MOTOR2, OUT, arr1);
+      MoveMotor_Haptic(MOTOR1, STOP, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, arry2);
     }
     //Segment 3
     else if (X_pos > Xmax && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, IN, arr1);
-      MoveMotor_Haptic(MOTOR2, HALF_OUT, arr1);
+      MoveMotor_Haptic(MOTOR1, IN, arry1);
+      MoveMotor_Haptic(MOTOR2, HALF_OUT, arry2);
     }
     //Segment 4
     else if (X_pos < Xmin && Y_pos > Ymin && Y_pos < Ymax){
-      MoveMotor_Haptic(MOTOR1, OUT, arr1);
-      MoveMotor_Haptic(MOTOR2, STOP, arr1);
+      MoveMotor_Haptic(MOTOR1, OUT, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, arry2);
     }
     //Segment 5
     else if (X_pos < Xmax && X_pos > Xmin && Y_pos > Ymin && Y_pos < Ymax){
-      MoveMotor_Haptic(MOTOR1, STOP, arr1);
-      MoveMotor_Haptic(MOTOR2, STOP, arr1);
+      MoveMotor_Haptic(MOTOR1, STOP, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, arry2);
     }
     //Segment 6
     else if (X_pos > Xmax && Y_pos > Ymin && Y_pos < Ymax){
-      MoveMotor_Haptic(MOTOR1, IN, arr1);
-      MoveMotor_Haptic(MOTOR2, STOP, arr1);
+      MoveMotor_Haptic(MOTOR1, IN, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, arry2);
     }
     //Segment 7
     else if (X_pos < Xmin && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, HALF_OUT, arr1);
-      MoveMotor_Haptic(MOTOR2, IN, arr1);
+      MoveMotor_Haptic(MOTOR1, HALF_OUT, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, arry2);
     }
     //Segment 8
     else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, STOP, arr1);
-      MoveMotor_Haptic(MOTOR2, IN, arr1);
+      MoveMotor_Haptic(MOTOR1, STOP, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, arry2);
     }
     //Segment 9
     else if (X_pos > Xmax && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, IN, arr1);
-      MoveMotor_Haptic(MOTOR2, IN, arr1);
+      MoveMotor_Haptic(MOTOR1, IN, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, arry2);
     }
     else{
-      MoveMotor_Haptic(MOTOR1, STOP, arr1);
-      MoveMotor_Haptic(MOTOR2, STOP, arr1);
+      MoveMotor_Haptic(MOTOR1, STOP, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, arry2);
     }
 }
 
