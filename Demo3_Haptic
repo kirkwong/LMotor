@@ -39,10 +39,6 @@
 #define segment8_start    13
 #define segment8_end      15
 
-#define PWM_HIGH          220
-#define PWM_MED           127
-#define PWM_LOW           35
-
 #define IN                1
 #define OUT               2
 #define STOP              3
@@ -185,10 +181,10 @@ void loop() {
 }
 
 void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
-    double Xmin = 5.0;
-    double Xmax = 15.0;
-    double Ymin = -15.0;
-    double Ymax = -5.0;
+    double Xmin = 3.0;
+    double Xmax = 13.0;
+    double Ymin = -3.0;
+    double Ymax = -13.0;
     
     //Segment 1
     if (X_pos < Xmin && Y_pos > Ymax){
@@ -286,39 +282,47 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     }
 
     if (Dir == 1){ //if IN
-      if(arry[1] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
+      if(arr[1] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
       }
-      else if(arry[1] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
+      else if(arr[1] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
       }
-      else PWM_val = PWM_MED;
+      else PWM_val = 0;
     }
     else if (Dir == 2){ //if OUT
-      if(arry[2] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
+      if(arr[2] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
       }
-      else if(arry[2] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
+      else if(arr[2] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
       }
-      else PWM_val = PWM_MED;
+      else PWM_val = 0;
     }
     else if (Dir == 3){ //if STOP
-      PWM_val = PWM_MED;
+      PWM_val = 0;
     }
-    else PWM_val = PWM_MED;
+    else PWM_val = 0;
 
-    if(arry[0] == 1) { // if its Coil 1
-      analogWrite(coil1, PWM_val);
-      analogWrite(coil2, PWM_MED);
+    if(arr[0] == 1) { // if its Coil 1
+      analogWrite(c1_en, PWM_val);
+      digitalWrite(c1_dir, PWM_dir);
+      
+      analogWrite(c2_en, 0);
     }
-    else if(arry[0] == 2) { // if its Coil 2
-      analogWrite(coil2, PWM_val);
-      analogWrite(coil1, PWM_MED);
+    else if(arr[0] == 2) { // if its Coil 2
+      analogWrite(c2_en, PWM_val);
+      digitalWrite(c2_dir, PWM_dir);
+      
+      analogWrite(c1_en, 0);
     }
     else{
-      analogWrite(coil1, PWM_MED);
-      analogWrite(coil2, PWM_MED);
+      analogWrite(c1_en, 0);
+      analogWrite(c2_en, 0);
     }
 }
 
