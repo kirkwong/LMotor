@@ -65,8 +65,8 @@ double L = 16.5; //joint length
 double distance = 17; //distance from motor to xy axis
 double top_length = 4.7; //length of the blue top on each rotor
 double q1x = 0.0;
-double q1y = -5.0; //fixed value
-double q2x = 5.0; //fixed value
+double q1y = -10.0; //fixed value
+double q2x = 10.0; //fixed value
 double q2y = 0.0;
 
 double A = 0;
