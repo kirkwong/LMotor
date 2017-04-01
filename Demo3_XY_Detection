@@ -1,28 +1,28 @@
 //Motor 1
-//// Shift Register Pins CD74HCT597
-//#define LATCHPIN    46
-//#define STCP        52
-//#define CLOCKPIN    50
-//#define Resetpin    44
-//#define datapin     48
-//
-//// Decoder Pins
-//#define RSTN        49
-//#define OEN         51
-//#define SEL_1       53
+// Shift Register Pins CD74HCT597
+#define LATCHPIN1    46
+#define STCP1        52
+#define CLOCKPIN1   50
+#define Resetpin1    44
+#define datapin1     48
+
+// Decoder Pins
+#define RSTN1        49
+#define OEN1         51
+#define SEL1       53
 
 //Motor 2
 // Shift Register Pins CD74HCT597
-#define LATCHPIN    26
-#define STCP        32
-#define CLOCKPIN    30
-#define Resetpin    24
-#define datapin     28
+#define LATCHPIN2    26
+#define STCP2        32
+#define CLOCKPIN2    30
+#define Resetpin2    24
+#define datapin2     28
 
 // Decoder Pins
-#define RSTN        25
-#define OEN         27
-#define SEL_1       29
+#define RSTN2        25
+#define OEN2         27
+#define SEL2       29
 
 int EncoderTicks1;
 int EncoderTicks2;
@@ -56,6 +56,8 @@ double Y = 0;
 
 
 void setup() {
+    Serial.begin(250000);
+
 // PINS for the ShiftRegister
     pinMode(LATCHPIN1, OUTPUT); // PLN
     pinMode(STCP1, OUTPUT); // STCP
@@ -127,9 +129,9 @@ void loop() {
     theta = asin((q2x - q1x) / deltaQ);    
     phi = acos(sq(deltaQ)/(2 * L * deltaQ));  
     alpha = theta - phi;
-    beta = (pi/2) - alpha;    
+    beta = (pi/2) - abs(alpha);    
     A = L * sin(beta);
-    B = L * sin(alpha);  
+    B = L * sin(abs(alpha));  
     if (alpha > 0){
       X = q2x - B;
     }
@@ -138,6 +140,14 @@ void loop() {
     }
     Y = q2y - A;
 
+    Serial.print(" alpha: ");
+    Serial.print(alpha);
+    Serial.print(" theta: ");
+    Serial.print(theta);
+    Serial.print(" phi: ");
+    Serial.print(phi);
+    Serial.print(" beta: ");
+    Serial.print(beta);
     Serial.print(" Actual1: ");
     Serial.print(actual_pos1);
     Serial.print(" Actual2: ");
@@ -150,6 +160,7 @@ void loop() {
     Serial.print(X);
     Serial.print(" Y: ");
     Serial.print(Y); 
+    Serial.print("\n");
 }
 
 // DECODER function to find EncoderTicks for each Motor
