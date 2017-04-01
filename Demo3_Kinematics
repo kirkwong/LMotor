@@ -1,17 +1,17 @@
 #include <math.h>
 
-double deltaQ = 0.0;
-double q1x = -4.0;
-double q1y = 3.0; //fixed value
-double q2x = 3.0; //fixed value
-double q2y = 4.0;
+double q1x = -8.0;
+double q1y = -10.0; //fixed value
+double q2x = 10.0; //fixed value
+double q2y = 7.0;
 
+double deltaQ = 0.0;
 double theta = 0;
 double alpha = 0;
 double beta = 0;
 double phi = 0;
 
-double L = 4.5;
+double L = 16.5; //joint length
 double A = 0;
 double B = 0;
 double C = 0;
