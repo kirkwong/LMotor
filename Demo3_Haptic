@@ -1,26 +1,30 @@
 #include <math.h>
 
+//Motor 1
 // Shift Register Pins CD74HCT597
-#define LATCHPIN1 6  // PLN
-#define STCP1 2  
-#define CLOCKPIN1 3  //SHCP
-#define Resetpin1 4 // MR
-#define datapin1 5  // Q
-
-#define LATCHPIN2 15  // PLN
-#define STCP2 16  
-#define CLOCKPIN2 17  //SHCP
-#define Resetpin2 18 // MR
-#define datapin2 19  // Q
+#define LATCHPIN    46
+#define STCP        52
+#define CLOCKPIN    50
+#define Resetpin    44
+#define datapin     48
 
 // Decoder Pins
-#define RSTN1 7  
-#define OEN1 9  
-#define SEL1 12    
+#define RSTN        49
+#define OEN         51
+#define SEL_1       53
 
-#define RSTN2 20  
-#define OEN2 21  
-#define SEL2 22  
+//Motor 2
+// Shift Register Pins CD74HCT597
+#define LATCHPIN    26
+#define STCP        32
+#define CLOCKPIN    30
+#define Resetpin    24
+#define datapin     28
+
+// Decoder Pins
+#define RSTN        25
+#define OEN         27
+#define SEL_1       29
 
 #define segment1_start    0
 #define segment1_end      1
@@ -45,10 +49,18 @@
 
 #define MOTOR1 1
 #define MOTOR2 2
-#define CoilA 10 // Motor 1 Coil 1
-#define CoilB 11 // Motor 1 Coil 2
-#define CoilC 12 // Motor 2 Coil 1
-#define CoilD 13 // Motor 2 Coil 2
+
+//Motor 1
+#define m1c1_dir            7
+#define m1c1_en             8
+#define m1c2_dir            5
+#define m1c2_en             6
+
+//Motor 2
+#define m2c1_dir            11
+#define m2c1_en             12
+#define m2c2_dir            9
+#define m2c2_en             10
 
 int arr1[3] = {0,0,0};
 int arr2[3] = {0,0,0};
@@ -269,16 +281,22 @@ int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
 
 void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     int PWM_val = 127;
-    int coil1;
-    int coil2;
+    int coil1_dir;
+    int coil1_en;
+    int coil2_dir;
+    int coil2_en;
     
     if (Motor == 1){
-      coil1 = CoilA;
-      coil2 = CoilB;
+      coil1_dir = m1c1_dir;
+      coil1_en = m1c1_en;
+      coil2_dir = m1c2_dir;
+      coil2_en = m1c2_en;
     }
     else { //if Motor == 2
-      coil1 = CoilC;
-      coil2 = CoilD;
+      coil1_dir = m2c1_dir;
+      coil1_en = m2c1_en;
+      coil2_dir = m2c2_dir;
+      coil2_en = m2c2_en;
     }
 
     if (Dir == 1){ //if IN
