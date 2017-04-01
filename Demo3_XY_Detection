@@ -30,8 +30,8 @@ double distance = 17.0;
 
 double deltaQ = 0.0;
 double q1x = 0.0;
-double q1y = -5.0; //fixed value
-double q2x = 5.0; //fixed value
+double q1y = -10.0; //fixed value
+double q2x = 10.0; //fixed value
 double q2y = 0.0;
 double q1d = 0;
 double q2d = 0;
