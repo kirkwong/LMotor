@@ -1,24 +1,28 @@
-// Shift Register Pins CD74HCT597
-#define LATCHPIN1 6  // PLN
-#define STCP1 2  
-#define CLOCKPIN1 3  //SHCP
-#define Resetpin1 4 // MR
-#define datapin1 5  // Q
+//Motor 1
+//// Shift Register Pins CD74HCT597
+//#define LATCHPIN    46
+//#define STCP        52
+//#define CLOCKPIN    50
+//#define Resetpin    44
+//#define datapin     48
+//
+//// Decoder Pins
+//#define RSTN        49
+//#define OEN         51
+//#define SEL_1       53
 
-#define LATCHPIN2 15  // PLN
-#define STCP2 16  
-#define CLOCKPIN2 17  //SHCP
-#define Resetpin2 18 // MR
-#define datapin2 19  // Q
+//Motor 2
+// Shift Register Pins CD74HCT597
+#define LATCHPIN    26
+#define STCP        32
+#define CLOCKPIN    30
+#define Resetpin    24
+#define datapin     28
 
 // Decoder Pins
-#define RSTN1 7  
-#define OEN1 9  
-#define SEL1 12    
-
-#define RSTN2 20  
-#define OEN2 21  
-#define SEL2 22  
+#define RSTN        25
+#define OEN         27
+#define SEL_1       29
 
 int EncoderTicks1;
 int EncoderTicks2;
