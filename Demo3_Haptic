@@ -2,29 +2,29 @@
 
 //Motor 1
 // Shift Register Pins CD74HCT597
-#define LATCHPIN    46
-#define STCP        52
-#define CLOCKPIN    50
-#define Resetpin    44
-#define datapin     48
+#define LATCHPIN1    46
+#define STCP1        52
+#define CLOCKPIN1   50
+#define Resetpin1    44
+#define datapin1     48
 
 // Decoder Pins
-#define RSTN        49
-#define OEN         51
-#define SEL_1       53
+#define RSTN1        49
+#define OEN1         51
+#define SEL1       53
 
 //Motor 2
 // Shift Register Pins CD74HCT597
-#define LATCHPIN    26
-#define STCP        32
-#define CLOCKPIN    30
-#define Resetpin    24
-#define datapin     28
+#define LATCHPIN2    26
+#define STCP2        32
+#define CLOCKPIN2    30
+#define Resetpin2    24
+#define datapin2     28
 
 // Decoder Pins
-#define RSTN        25
-#define OEN         27
-#define SEL_1       29
+#define RSTN2        25
+#define OEN2         27
+#define SEL2       29
 
 #define segment1_start    0
 #define segment1_end      1
@@ -53,7 +53,7 @@
 //Motor 1
 #define m1c1_dir            7
 #define m1c1_en             8
-#define m1c2_dir            5
+#define m1c2_dir            4
 #define m1c2_en             6
 
 //Motor 2
@@ -71,38 +71,41 @@ int EncoderTicks2 = 0;
 double setpoint_pos1 = 0;
 double setpoint_pos2 = 0;
 
-double P[2] = {0,0};
-double X = 0;
-double Y = 0;
-int nextP = 0; // Flag to keep track of [X,Y]
-
 //INVERSE KINEMATICS
-double L = 16.5; //joint length
-double distance = 17; //distance from motor to xy axis
-double top_length = 4.7; //length of the blue top on each rotor
+double top_length = 4.7;
+double distance = 17.0;
+double deltaQ = 0.0;
 double q1x = 0.0;
 double q1y = -10.0; //fixed value
 double q2x = 10.0; //fixed value
 double q2y = 0.0;
-double q1d = 0.0;
-double q2d = 0.0;
+double q1d = 0;
+double q2d = 0;
 
+double theta = 0;
+double alpha = 0;
+double beta = 0;
+double phi = 0;
+
+double L = 16.5;
 double A = 0;
 double B = 0;
 double C = 0;
 double D = 0;
+double pi = 3.14159;
+double X = 0;
+double Y = 0;
      
 void setup() {
     Serial.begin (250000);
-    
-    pinMode(CoilA, OUTPUT);
-    pinMode(CoilB, OUTPUT);
-    pinMode(CoilC, OUTPUT);
-    pinMode(CoilD, OUTPUT);
-    analogWrite(CoilA, PWM_MED);
-    analogWrite(CoilB, PWM_MED);
-    analogWrite(CoilC, PWM_MED);
-    analogWrite(CoilD, PWM_MED);
+    pinMode(m1c1_dir, OUTPUT);
+    pinMode(m1c1_en, OUTPUT);
+    pinMode(m1c2_dir, OUTPUT);
+    pinMode(m1c2_en , OUTPUT);
+    analogWrite(m1c1_en, 0);
+    analogWrite(m1c2_en, 0);
+    digitalWrite(m1c1_dir, LOW);
+    digitalWrite(m1c2_dir, LOW); 
     
     // PINS for the ShiftRegister
     pinMode(LATCHPIN1, OUTPUT); // PLN
@@ -175,9 +178,9 @@ void loop() {
     theta = asin((q2x - q1x) / deltaQ);    
     phi = acos(sq(deltaQ)/(2 * L * deltaQ));  
     alpha = theta - phi;
-    beta = (pi/2) - alpha;    
+    beta = (pi/2) - abs(alpha);    
     A = L * sin(beta);
-    B = L * sin(alpha);  
+    B = L * sin(abs(alpha));  
     if (alpha > 0){
       X = q2x - B;
     }
@@ -189,63 +192,89 @@ void loop() {
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
 
+    
+
     HapticSegment(X, Y, arr1, arr2);
+
+    Serial.print(" Actual1: ");
+    Serial.print(actual_pos1);
+    Serial.print(" Actual2: ");
+    Serial.print(actual_pos2);
+    Serial.print(" q1x: ");
+    Serial.print(q1x);
+    Serial.print(" q2y: ");
+    Serial.print(q2y); 
+    Serial.print(" X: ");
+    Serial.print(X);
+    Serial.print(" Y: ");
+    Serial.print(Y); 
+    Serial.print("\n");
 }
 
 void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
-    double Xmin = 5.0;
+    double Xmin = 6.0;
     double Xmax = 13.0;
-    double Ymin = -5.0;
-    double Ymax = -13.0;
+    double Ymin = -13.0;
+    double Ymax = -6.0;
     
     //Segment 1
     if (X_pos < Xmin && Y_pos > Ymax){
       MoveMotor_Haptic(MOTOR1, OUT, arry1);
       MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      Serial.print("S1");
     }
     //Segment 2
     else if (X_pos > Xmin && X_pos < Xmax && Y_pos > Ymax){
       MoveMotor_Haptic(MOTOR1, STOP, arry1);
       MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      Serial.print("S2");
     }
     //Segment 3
     else if (X_pos > Xmax && Y_pos > Ymax){
       MoveMotor_Haptic(MOTOR1, IN, arry1);
       MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      Serial.print("S3");
     }
     //Segment 4
     else if (X_pos < Xmin && Y_pos > Ymin && Y_pos < Ymax){
       MoveMotor_Haptic(MOTOR1, OUT, arry1);
       MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      Serial.print("S4");
     }
     //Segment 5
-    else if (X_pos < Xmax && X_pos > Xmin && Y_pos > Ymin && Y_pos < Ymax){
+    else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymax && Y_pos > Ymin){
       MoveMotor_Haptic(MOTOR1, STOP, arry1);
       MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      Serial.print("S5");
     }
     //Segment 6
     else if (X_pos > Xmax && Y_pos > Ymin && Y_pos < Ymax){
       MoveMotor_Haptic(MOTOR1, IN, arry1);
       MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      Serial.print("S6");
     }
     //Segment 7
     else if (X_pos < Xmin && Y_pos < Ymin){
       MoveMotor_Haptic(MOTOR1, OUT, arry1);
       MoveMotor_Haptic(MOTOR2, IN, arry2);
+      Serial.print("S7");
     }
     //Segment 8
     else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymin){
       MoveMotor_Haptic(MOTOR1, STOP, arry1);
       MoveMotor_Haptic(MOTOR2, IN, arry2);
+      Serial.print("S8");
     }
     //Segment 9
     else if (X_pos > Xmax && Y_pos < Ymin){
       MoveMotor_Haptic(MOTOR1, IN, arry1);
       MoveMotor_Haptic(MOTOR2, IN, arry2);
+      Serial.print("S9");
     }
     else{
       MoveMotor_Haptic(MOTOR1, STOP, arry1);
       MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      Serial.print("No Segment");
     }
 }
 
@@ -285,6 +314,7 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     int coil1_en;
     int coil2_dir;
     int coil2_en;
+    int PWM_dir;
     
     if (Motor == 1){
       coil1_dir = m1c1_dir;
@@ -300,24 +330,24 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     }
 
     if (Dir == 1){ //if IN
-      if(arr[1] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 170;
-        PWM_dir = HIGH;
-      }
-      else if(arr[1] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 170;
+      if(arry[1] == 0){ // CCW
+        PWM_val = 220;
         PWM_dir = LOW;
+      }
+      else if(arry[1] == 1) { //CW
+        PWM_val = 220;
+        PWM_dir = HIGH;
       }
       else PWM_val = 0;
     }
     else if (Dir == 2){ //if OUT
-      if(arr[2] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 170;
-        PWM_dir = HIGH;
-      }
-      else if(arr[2] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 170;
+      if(arry[2] == 0){ // CCW
+        PWM_val = 220;
         PWM_dir = LOW;
+      }
+      else if(arry[2] == 1) { //CW
+        PWM_val = 220;
+        PWM_dir = HIGH;
       }
       else PWM_val = 0;
     }
@@ -326,21 +356,23 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
     }
     else PWM_val = 0;
 
-    if(arr[0] == 1) { // if its Coil 1
-      analogWrite(c1_en, PWM_val);
-      digitalWrite(c1_dir, PWM_dir);
-      
-      analogWrite(c2_en, 0);
+    if(arry[0] == 1) { // if its Coil 1
+      analogWrite(coil1_en, PWM_val);
+      digitalWrite(coil1_dir, PWM_dir);      
+      analogWrite(coil2_en, 0);
     }
-    else if(arr[0] == 2) { // if its Coil 2
-      analogWrite(c2_en, PWM_val);
-      digitalWrite(c2_dir, PWM_dir);
-      
-      analogWrite(c1_en, 0);
+    else if(arry[0] == 2) { // if its Coil 2
+      analogWrite(coil2_en, PWM_val);
+      digitalWrite(coil2_dir, PWM_dir);      
+      analogWrite(coil1_en, 0);
+    }
+    else if ((Dir == 3 && arry[0] == 1) || (Dir == 3 && arry[1] == 2)){
+      analogWrite(coil1_en, PWM_val);
+      analogWrite(coil2_en, PWM_val);
     }
     else{
-      analogWrite(c1_en, 0);
-      analogWrite(c2_en, 0);
+      analogWrite(coil1_en, 0);
+      analogWrite(coil2_en, 0);
     }
 }
 
