@@ -2,29 +2,29 @@
 
 //Motor 1
 // Shift Register Pins CD74HCT597
-#define LATCHPIN    46
-#define STCP        52
-#define CLOCKPIN    50
-#define Resetpin    44
-#define datapin     48
+#define LATCHPIN1    46
+#define STCP1        52
+#define CLOCKPIN1   50
+#define Resetpin1    44
+#define datapin1     48
 
 // Decoder Pins
-#define RSTN        49
-#define OEN         51
-#define SEL_1       53
+#define RSTN1        49
+#define OEN1         51
+#define SEL1       53
 
 //Motor 2
 // Shift Register Pins CD74HCT597
-#define LATCHPIN    26
-#define STCP        32
-#define CLOCKPIN    30
-#define Resetpin    24
-#define datapin     28
+#define LATCHPIN2    26
+#define STCP2        32
+#define CLOCKPIN2    30
+#define Resetpin2    24
+#define datapin2     28
 
 // Decoder Pins
-#define RSTN        25
-#define OEN         27
-#define SEL_1       29
+#define RSTN2        25
+#define OEN2         27
+#define SEL2       29
 
 #define segment1_start    0
 #define segment1_end      1
@@ -49,7 +49,7 @@
 //Motor 1
 #define m1c1_dir            7
 #define m1c1_en             8
-#define m1c2_dir            5
+#define m1c2_dir            4
 #define m1c2_en             6
 
 //Motor 2
@@ -57,7 +57,6 @@
 #define m2c1_en             12
 #define m2c2_dir            9
 #define m2c2_en             10
-
 
 int arr1[3] = {0,0,0};
 int arr2[3] = {0,0,0};
@@ -86,18 +85,28 @@ double A = 0;
 double B = 0;
 double C = 0;
 double D = 0;
-     
+
+double last_error1 = 0;
+int error_count1 = 0;
+double last_error2 = 0;
+int error_count2 = 0;
+
+int coil1_dir;
+int coil1_en;
+int coil2_dir;
+int coil2_en;
+
 void setup() {
     Serial.begin (250000);
     
-    pinMode(CoilA, OUTPUT);
-    pinMode(CoilB, OUTPUT);
-    pinMode(CoilC, OUTPUT);
-    pinMode(CoilD, OUTPUT);
-    analogWrite(CoilA, PWM_MED);
-    analogWrite(CoilB, PWM_MED);
-    analogWrite(CoilC, PWM_MED);
-    analogWrite(CoilD, PWM_MED);
+    pinMode(coil1_dir, OUTPUT);
+    pinMode(coil1_en, OUTPUT);
+    pinMode(coil2_dir, OUTPUT);
+    pinMode(coil2_en, OUTPUT);
+    analogWrite(coil1_en, 0);
+    analogWrite(coil2_en, 0);
+    analogWrite(coil1_dir, LOW);
+    analogWrite(coil2_dir, LOW);
     
     // PINS for the ShiftRegister
     pinMode(LATCHPIN1, OUTPUT); // PLN
@@ -182,6 +191,21 @@ void loop() {
     MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
     MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
 
+    Serial.print(" X: ");
+    Serial.print(X);
+    Serial.print(" Y: ");
+    Serial.print(Y);   
+    Serial.print(" Set1: ");
+    Serial.print(setpoint_pos1);
+    Serial.print(" Set2: ");
+    Serial.print(setpoint_pos2);
+    Serial.print(" Actual1: ");
+    Serial.print(actual_pos1);
+    Serial.print(" Actual2: ");
+    Serial.print(actual_pos2);
+    Serial.print("\n");
+ 
+
     // Next P[X,Y] once both motor joint positions are correct
     if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ 
       nextP++;
@@ -191,30 +215,41 @@ void loop() {
     }
 }
 
+//void XY_Position (int next_P, double P_array[]){
+//  if (next_P == 0){
+//    P_array[0] = 10;
+//    P_array[1] = -6;
+//  }
+//  else {
+//    P_array[0] = 10;
+//    P_array[1] = -6;
+//  }
+//}
+
 // Rotating through defined XY positions
 // Current shape = Rectangle
-void XY_Position (int next_P, double P_array[]){
-  if (next_P == 0){
-    P_array[0] = 5;
-    P_array[1] = -5;
-  }
-  else if (next_P == 1){
-    P_array[0] = 5;
-    P_array[1] = -13;
-  }
-  else if (next_P == 2){
-    P_array[0] = 13;
-    P_array[1] = -13;
-  }
-  else if (next_P == 3){
-    P_array[0] = 13;
-    P_array[1] = -5;
-  }
-  else {
-    P_array[0] = 5;
-    P_array[1] = -5;
-  }
-}
+//void XY_Position (int next_P, double P_array[]){
+//  if (next_P == 0){
+//    P_array[0] = 6;
+//    P_array[1] = -6;
+//  }
+//  else if (next_P == 1){
+//    P_array[0] = 6;
+//    P_array[1] = -13;
+//  }
+//  else if (next_P == 2){
+//    P_array[0] = 13;
+//    P_array[1] = -13;
+//  }
+//  else if (next_P == 3){
+//    P_array[0] = 13;
+//    P_array[1] = -6;
+//  }
+//  else {
+//    P_array[0] = 6;
+//    P_array[1] = -6;
+//  }
+//}
 
 // DECODER function to find EncoderTicks for each Motor
 int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
@@ -250,13 +285,9 @@ int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
 void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     double error = 0;
     double PWM_percent = 0;
-    double max_error = 2.15;
+    double max_error = 18; //2.15 Motor 1 // 18
     int PWM_val = 127;
     int PWM_dir = 0;
-    int coil1_dir;
-    int coil1_en;
-    int coil2_dir;
-    int coil2_en;
     
     if (Motor == 1){
       coil1_dir = m1c1_dir;
@@ -275,45 +306,68 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     PWM_percent = abs(error) / max_error; //scaling the error value for PWM
     PWM_percent = constrain(PWM_percent, 0, 1); //PWM value will only scale if error is less than max_error 
     
-    if(error <  -0.5) {
-      if(arr[1] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 170;
-        PWM_dir = HIGH;
-      }
-      else if(arr[1] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 170;
+   if(error <  -0.5) {
+      if(arry[1] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 180;
         PWM_dir = LOW;
+      }
+      else if(arry[1] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = HIGH;
       }
       else PWM_val = 0;
     } 
     else if(error > 0.5) {
-      if(arr[2] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 170;
-        PWM_dir = HIGH;
-      }
-      else if(arr[2] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 170;
+      if(arry[2] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 180;
         PWM_dir = LOW;
+      }
+      else if(arry[2] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = HIGH;
       }
       else PWM_val = 0;
     }
     else PWM_val = 0;
-    
-    if(arr[0] == 1) { // if its Coil 1
-      analogWrite(c1_en, PWM_val);
-      digitalWrite(c1_dir, PWM_dir);
-      
-      analogWrite(c2_en, 0);
+
+    if (Motor == 1){
+      if ((last_error1 == error) && (abs(error) > 0.5)){
+        if(error_count1 > 5){
+          PWM_val = 230;
+        }
+        if(error_count1 > 45){
+          error_count1 = 0;
+        }
+        error_count1++;
+      }
+      last_error1 = error;
     }
-    else if(arr[0] == 2) { // if its Coil 2
-      analogWrite(c2_en, PWM_val);
-      digitalWrite(c2_dir, PWM_dir);
-      
-      analogWrite(c1_en, 0);
+    else { //if Motor == 2
+      if ((last_error2 == error) && (abs(error) > 0.5)){
+        if(error_count2 > 5){
+          PWM_val = 230;
+        }
+        if(error_count2 > 45){
+          error_count2 = 0;
+        }
+        error_count2++;
+      }
+      last_error2 = error;
+    }
+    
+    if(arry[0] == 1) { // if its Coil 1
+      analogWrite(coil1_en, PWM_val);
+      digitalWrite(coil1_dir, PWM_dir);      
+      analogWrite(coil2_en, 0);
+    }
+    else if(arry[0] == 2) { // if its Coil 2
+      analogWrite(coil2_en, PWM_val);
+      digitalWrite(coil2_dir, PWM_dir);      
+      analogWrite(coil1_en, 0);
     }
     else{
-      analogWrite(c1_en, 0);
-      analogWrite(c2_en, 0);
+      analogWrite(coil1_en, 0);
+      analogWrite(coil2_en, 0);
     }
 }
 
