@@ -100,6 +100,8 @@ int coil1_en;
 int coil2_dir;
 int coil2_en;
 
+double error_range = 0.5;
+
 void setup() {
     Serial.begin (250000);
     
@@ -192,28 +194,32 @@ void loop() {
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
 
-    if ((abs(setpoint_pos1 - actual_pos1) > 0.5)){
+    if ((abs(setpoint_pos1 - actual_pos1) > error_range)){
       if (flag == 0){
         MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
+        analogWrite(m2c1_en, 0);
+        analogWrite(m2c2_en, 0);
         M1count = 0;
       }
     }
     else {
       M1count++;
       MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
+      analogWrite(m2c1_en, 0);
+      analogWrite(m2c2_en, 0);
     }
 
     if (M1count > 10){
       flag = 1;
-      if (abs(setpoint_pos2 - actual_pos2) > 0.5){
+      if (abs(setpoint_pos2 - actual_pos2) > error_range){
         MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
-        MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
+        MoveMotor2(MOTOR2, setpoint_pos2, actual_pos2, arr2);
         M2count = 0;
       }
       else {
         M2count++;
         MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
-        MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
+        MoveMotor2(MOTOR2, setpoint_pos2, actual_pos2, arr2);
       }
     }
     
@@ -267,35 +273,10 @@ void loop() {
 
 void XY_Position (int next_P, double P_array[]){
   if (next_P == 0){
-    P_array[0] = 7;
-    P_array[1] = -7;
+    P_array[0] = 8;
+    P_array[1] = -8;
   }
 }
-
-// Rotating through defined XY positions
-// Current shape = Rectangle
-//void XY_Position (int next_P, double P_array[]){
-//  if (next_P == 0){
-//    P_array[0] = 6;
-//    P_array[1] = -6;
-//  }
-//  else if (next_P == 1){
-//    P_array[0] = 6;
-//    P_array[1] = -13;
-//  }
-//  else if (next_P == 2){
-//    P_array[0] = 13;
-//    P_array[1] = -13;
-//  }
-//  else if (next_P == 3){
-//    P_array[0] = 13;
-//    P_array[1] = -6;
-//  }
-//  else {
-//    P_array[0] = 6;
-//    P_array[1] = -6;
-//  }
-//}
 
 // DECODER function to find EncoderTicks for each Motor
 int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
@@ -327,6 +308,108 @@ int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
     return EncoderTicks;
 }
 
+
+//MoveMotor function to determine movement for Motors
+void MoveMotor2(int Motor, double Setpoint, double Actual, int arry[]){
+    double error = 0;
+    double PWM_percent = 0;
+    double max_error = 18; //2.15 Motor 1 // 18
+    int PWM_val = 127;
+    int PWM_dir = 0;
+    
+    if (Motor == 1){
+      coil1_dir = m1c1_dir;
+      coil1_en = m1c1_en;
+      coil2_dir = m1c2_dir;
+      coil2_en = m1c2_en;
+    }
+    else { //if Motor == 2
+      coil1_dir = m2c1_dir;
+      coil1_en = m2c1_en;
+      coil2_dir = m2c2_dir;
+      coil2_en = m2c2_en;
+    }
+    
+    error = Setpoint - Actual; //calculate the error    
+    PWM_percent = abs(error) / max_error; //scaling the error value for PWM
+    PWM_percent = constrain(PWM_percent, 0, 1); //PWM value will only scale if error is less than max_error 
+    
+   if(error <  (-1 * error_range)) {
+      if(arry[1] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
+      }
+      else if(arry[1] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
+      }
+      else PWM_val = 0;
+    } 
+    else if(error > error_range) {
+      if(arry[2] == 0){ // CCW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = LOW;
+      }
+      else if(arry[2] == 1) { //CW
+        PWM_val = PWM_percent * 50 + 170;
+        PWM_dir = HIGH;
+      }
+      else PWM_val = 0;
+    }
+    else PWM_val = 0;
+
+    if (Motor == 1){
+      if ((last_error1 == error) && (abs(error) > error_range)){
+        if(error_count1 > 50){
+          PWM_val = 240;
+        }
+        if(error_count1 > 70){
+          PWM_val = 160;
+        }
+        if(error_count1 > 80){
+          error_count1 = 0;
+        }
+        error_count1++;
+      }
+      last_error1 = error;
+    }
+    else { //if Motor == 2
+      if ((last_error2 == error) && (abs(error) > error_range)){
+        if(error_count2 > 50){
+          PWM_val = 240;
+        }
+        if(error_count1 > 70){
+          PWM_val = 160;
+        }
+        if(error_count2 > 180){
+          error_count2 = 0;
+        }
+        error_count2++;
+      }
+      last_error2 = error;
+    }
+    Serial.print(" Motor: ");
+    Serial.print(Motor);
+    Serial.print(" PWM: ");
+    Serial.print(PWM_val);
+    Serial.print(" ");
+    
+    if(arry[0] == 1) { // if its Coil 1
+      analogWrite(coil1_en, PWM_val);
+      digitalWrite(coil1_dir, PWM_dir);      
+      analogWrite(coil2_en, 0);
+    }
+    else if(arry[0] == 2) { // if its Coil 2
+      analogWrite(coil2_en, PWM_val);
+      digitalWrite(coil2_dir, PWM_dir);      
+      analogWrite(coil1_en, 0);
+    }
+    else{
+      analogWrite(coil1_en, 0);
+      analogWrite(coil2_en, 0);
+    }
+}
+
 //MoveMotor function to determine movement for Motors
 void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     double error = 0;
@@ -352,24 +435,24 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     PWM_percent = abs(error) / max_error; //scaling the error value for PWM
     PWM_percent = constrain(PWM_percent, 0, 1); //PWM value will only scale if error is less than max_error 
     
-   if(error <  -0.5) {
+   if(error <  (-1 * error_range)) {
       if(arry[1] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 180;
+        PWM_val = PWM_percent * 50 + 175;
         PWM_dir = LOW;
       }
       else if(arry[1] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 180;
+        PWM_val = PWM_percent * 50 + 175;
         PWM_dir = HIGH;
       }
       else PWM_val = 0;
     } 
-    else if(error > 0.5) {
+    else if(error > error_range) {
       if(arry[2] == 0){ // CCW
-        PWM_val = PWM_percent * 50 + 180;
+        PWM_val = PWM_percent * 50 + 175;
         PWM_dir = LOW;
       }
       else if(arry[2] == 1) { //CW
-        PWM_val = PWM_percent * 50 + 180;
+        PWM_val = PWM_percent * 50 + 175;
         PWM_dir = HIGH;
       }
       else PWM_val = 0;
@@ -377,11 +460,14 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     else PWM_val = 0;
 
     if (Motor == 1){
-      if ((last_error1 == error) && (abs(error) > 0.5)){
-        if(error_count1 > 5){
-          PWM_val = 255;
+      if ((last_error1 == error) && (abs(error) > error_range)){
+        if(error_count1 > 50){
+          PWM_val = 240;
         }
-        if(error_count1 > 45){
+        if(error_count1 > 70){
+          PWM_val = 160;
+        }
+        if(error_count1 > 80){
           error_count1 = 0;
         }
         error_count1++;
@@ -389,11 +475,14 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
       last_error1 = error;
     }
     else { //if Motor == 2
-      if ((last_error2 == error) && (abs(error) > 0.5)){
-        if(error_count2 > 5){
-          PWM_val = 230;
+      if ((last_error2 == error) && (abs(error) > error_range)){
+        if(error_count2 > 50){
+          PWM_val = 240;
         }
-        if(error_count2 > 45){
+        if(error_count1 > 70){
+          PWM_val = 160;
+        }
+        if(error_count2 > 80){
           error_count2 = 0;
         }
         error_count2++;
