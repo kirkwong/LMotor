@@ -1,16 +1,27 @@
 #include "Arduino.h"
-
+//Motor 1
 // Shift Register Pins CD74HCT597
-#define LATCHPIN 6  // PLN
-#define STCP 2  
-#define CLOCKPIN 3  //SHCP
-#define Resetpin 4 // MR
-#define datapin 5  // Q
+#define LATCHPIN    46
+#define STCP        52
+#define CLOCKPIN   50
+#define Resetpin    44
+#define datapin     48
 
 // Decoder Pins
-#define RSTN 7  
-#define OEN 9  
-#define SEL_1 12    
+#define RSTN        49
+#define OEN         51
+#define SEL_1       53
+
+//#define LATCHPIN    26
+//#define STCP        32
+//#define CLOCKPIN    30
+//#define Resetpin    24
+//#define datapin     28
+//
+//// Decoder Pins
+//#define RSTN        25
+//#define OEN         27
+//#define SEL_1       29
 
 #define segment1_start    0
 #define segment1_end      1
@@ -32,8 +43,17 @@
 #define PWM_HIGH          220
 #define PWM_MED           127
 #define PWM_LOW           35
-#define coil1             10
-#define coil2             11
+
+//Motor 1
+#define m1c1_dir            7
+#define m1c1_en             8
+#define m1c2_dir            4
+#define m1c2_en             6
+//
+//#define m1c1_dir            11
+//#define m1c1_en             12
+//#define m1c2_dir            9
+//#define m1c2_en             10
 
 int incoming;
 int EncoderTicks;
@@ -46,15 +66,23 @@ double error = 0;
 double PWM_percent = 0;
 
 //Values that change
-double setpoint_pos = 0;
-double max_error = 2.15;
+double setpoint_pos = 7;
+double max_error = 18; //2.15 Motor 1 // 18
+double last_error = 0;
+int error_count = 0;
+
+int PWM_dir;
      
 void setup() {
     Serial.begin (250000);
-    pinMode(coil1, OUTPUT);
-    pinMode(coil2, OUTPUT);
-    analogWrite(coil1, PWM_MED);
-    analogWrite(coil2, PWM_MED);
+    pinMode(m1c1_dir, OUTPUT);
+    pinMode(m1c1_en, OUTPUT);
+    pinMode(m1c2_dir, OUTPUT);
+    pinMode(m1c2_en , OUTPUT);
+    analogWrite(m1c1_en, 0);
+    analogWrite(m1c2_en, 0);
+    digitalWrite(m1c1_dir, LOW);
+    digitalWrite(m1c2_dir, LOW); 
 
     // PINS for the ShiftRegister
     pinMode(LATCHPIN, OUTPUT); // PLN
@@ -65,7 +93,6 @@ void setup() {
 
     // PINS for the Decoder
     pinMode(RSTN, OUTPUT); // RSTN
-    pinMode(E8, INPUT); // U/D
     pinMode(OEN, OUTPUT); // OEN
     pinMode(SEL_1, OUTPUT); // SEL_1
 
@@ -87,7 +114,6 @@ void setup() {
     delay(5);    
     digitalWrite(Resetpin, HIGH);     
     delay(5);
-
 }
  
 void loop() { 
@@ -113,8 +139,8 @@ void loop() {
     EncoderTicks = constrain(EncoderTicks, 0, 255);
 
     // Setpoint controlled by potentiometer
-    setpoint_pos = analogRead(0);
-    setpoint_pos = (setpoint_pos/1023.0)*13.0;
+//    setpoint_pos = analogRead(0);
+//    setpoint_pos = (setpoint_pos/1023.0)*13.0;
     Serial.print(" Set: ");
     Serial.print(setpoint_pos);
     
@@ -127,38 +153,59 @@ void loop() {
     
     Serial.print(" Percent: ");
     Serial.print(PWM_percent);
-    
+      
     if(error <  -0.5) {
       if(arr[1] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = LOW;
       }
       else if(arr[1] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = HIGH;
       }
-      else PWM_val = PWM_MED;
+      else PWM_val = 0;
     } 
     else if(error > 0.5) {
       if(arr[2] == 0){ // CCW
-        PWM_val = (PWM_percent * (-30)) + 64;
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = LOW;
       }
       else if(arr[2] == 1) { //CW
-        PWM_val = (PWM_percent * 30) + 190;
+        PWM_val = PWM_percent * 50 + 180;
+        PWM_dir = HIGH;
       }
-      else PWM_val = PWM_MED;
+      else PWM_val = 0;
     }
-    else PWM_val = PWM_MED;
+    else PWM_val = 0;
+
+    if ((last_error == error) && (abs(error) > 0.5)){
+      if(error_count > 5){
+        PWM_val = 230;
+      }
+      if(error_count > 45){
+        error_count = 0;
+      }
+      error_count++;
+    }
+    last_error = error;
+    Serial.print(" lastError: ");
+    Serial.print(last_error);
+    Serial.print(" errCount: ");
+    Serial.print(error_count);
     
     if(arr[0] == 1) { // if its Coil 1
-      analogWrite(coil1, PWM_val);
-      analogWrite(coil2, PWM_MED);
+      analogWrite(m1c1_en, PWM_val);
+      digitalWrite(m1c1_dir, PWM_dir);      
+      analogWrite(m1c2_en, 0);
     }
     else if(arr[0] == 2) { // if its Coil 2
-      analogWrite(coil2, PWM_val);
-      analogWrite(coil1, PWM_MED);
+      analogWrite(m1c2_en, PWM_val);
+      digitalWrite(m1c2_dir, PWM_dir);      
+      analogWrite(m1c1_en, 0);
     }
     else{
-      analogWrite(coil1, PWM_MED);
-      analogWrite(coil2, PWM_MED);
+      analogWrite(m1c1_en, 0);
+      analogWrite(m1c2_en, 0);
     }
     
     Serial.print(" Actual: ");
