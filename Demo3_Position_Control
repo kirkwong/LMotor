@@ -200,18 +200,20 @@ void loop() {
     }
     else {
       M1count++;
+      MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
     }
 
     if (M1count > 10){
-      analogWrite(m1c1_en, 0);
-      analogWrite(m1c2_en, 0);
       flag = 1;
       if (abs(setpoint_pos2 - actual_pos2) > 0.5){
+        MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
         MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
         M2count = 0;
       }
       else {
         M2count++;
+        MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
+        MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
       }
     }
     
@@ -230,15 +232,15 @@ void loop() {
       M2count = 0;
       done_flag = 0;
     }
-
-    Serial.print(" Count1: ");
-    Serial.print(M1count);
-    Serial.print(" Count2: ");
-    Serial.print(M2count);
-    Serial.print(" Flag: ");
-    Serial.print(flag);
-    Serial.print(" DFLag: ");
-    Serial.print(done_flag);
+//
+//    Serial.print(" Count1: ");
+//    Serial.print(M1count);
+//    Serial.print(" Count2: ");
+//    Serial.print(M2count);
+//    Serial.print(" Flag: ");
+//    Serial.print(flag);
+//    Serial.print(" DFLag: ");
+//    Serial.print(done_flag);
 
 //    else if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ 
 //      nextP++;
@@ -265,8 +267,8 @@ void loop() {
 
 void XY_Position (int next_P, double P_array[]){
   if (next_P == 0){
-    P_array[0] = 6;
-    P_array[1] = -6;
+    P_array[0] = 7;
+    P_array[1] = -7;
   }
 }
 
@@ -377,7 +379,7 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
     if (Motor == 1){
       if ((last_error1 == error) && (abs(error) > 0.5)){
         if(error_count1 > 5){
-          PWM_val = 230;
+          PWM_val = 255;
         }
         if(error_count1 > 45){
           error_count1 = 0;
