@@ -90,6 +90,10 @@ double last_error1 = 0;
 int error_count1 = 0;
 double last_error2 = 0;
 int error_count2 = 0;
+int M1count = 0;
+int M2count = 0;
+int flag = 0;
+int done_flag = 0;
 
 int coil1_dir;
 int coil1_en;
@@ -188,8 +192,61 @@ void loop() {
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
     lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
 
-    MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
-    MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
+    if ((abs(setpoint_pos1 - actual_pos1) > 0.5)){
+      if (flag == 0){
+        MoveMotor(MOTOR1, setpoint_pos1, actual_pos1, arr1);
+        M1count = 0;
+      }
+    }
+    else {
+      M1count++;
+    }
+
+    if (M1count > 10){
+      analogWrite(m1c1_en, 0);
+      analogWrite(m1c2_en, 0);
+      flag = 1;
+      if (abs(setpoint_pos2 - actual_pos2) > 0.5){
+        MoveMotor(MOTOR2, setpoint_pos2, actual_pos2, arr2);
+        M2count = 0;
+      }
+      else {
+        M2count++;
+      }
+    }
+    
+    if (M2count > 10 && M1count > 10){
+        done_flag = 1;
+        analogWrite(m1c1_en, 0);
+        analogWrite(m1c2_en, 0);
+        analogWrite(m2c1_en, 0);
+        analogWrite(m2c2_en, 0);
+        Serial.print(" done ");
+    }
+    
+    if ((done_flag == 1) && ((abs(setpoint_pos2 - actual_pos2) > 1.0) || (abs(setpoint_pos1 - actual_pos1) > 1.0))){
+      flag = 0;
+      M1count = 0;
+      M2count = 0;
+      done_flag = 0;
+    }
+
+    Serial.print(" Count1: ");
+    Serial.print(M1count);
+    Serial.print(" Count2: ");
+    Serial.print(M2count);
+    Serial.print(" Flag: ");
+    Serial.print(flag);
+    Serial.print(" DFLag: ");
+    Serial.print(done_flag);
+
+//    else if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ 
+//      nextP++;
+//      if (nextP >= 4){
+//        nextP = 0;
+//      }
+//      Serial.print("next");
+//    }
 
     Serial.print(" X: ");
     Serial.print(X);
@@ -203,28 +260,15 @@ void loop() {
     Serial.print(actual_pos1);
     Serial.print(" Actual2: ");
     Serial.print(actual_pos2);
-    Serial.print("\n");
- 
-
-    // Next P[X,Y] once both motor joint positions are correct
-    if ((abs(setpoint_pos1 - actual_pos1) < 0.5) && (abs(setpoint_pos2 - actual_pos2) < 0.5)){ 
-      nextP++;
-      if (nextP >= 4){
-        nextP = 0;
-      }
-    }
+    Serial.print("\n"); 
 }
 
-//void XY_Position (int next_P, double P_array[]){
-//  if (next_P == 0){
-//    P_array[0] = 10;
-//    P_array[1] = -6;
-//  }
-//  else {
-//    P_array[0] = 10;
-//    P_array[1] = -6;
-//  }
-//}
+void XY_Position (int next_P, double P_array[]){
+  if (next_P == 0){
+    P_array[0] = 6;
+    P_array[1] = -6;
+  }
+}
 
 // Rotating through defined XY positions
 // Current shape = Rectangle
@@ -354,6 +398,11 @@ void MoveMotor(int Motor, double Setpoint, double Actual, int arry[]){
       }
       last_error2 = error;
     }
+    Serial.print(" Motor: ");
+    Serial.print(Motor);
+    Serial.print(" PWM: ");
+    Serial.print(PWM_val);
+    Serial.print(" ");
     
     if(arry[0] == 1) { // if its Coil 1
       analogWrite(coil1_en, PWM_val);
