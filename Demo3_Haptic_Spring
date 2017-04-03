@@ -1,0 +1,469 @@
+#include <math.h>
+
+//Motor 1
+// Shift Register Pins CD74HCT597
+#define LATCHPIN1    46
+#define STCP1        52
+#define CLOCKPIN1   50
+#define Resetpin1    44
+#define datapin1     48
+
+// Decoder Pins
+#define RSTN1        49
+#define OEN1         51
+#define SEL1       53
+
+//Motor 2
+// Shift Register Pins CD74HCT597
+#define LATCHPIN2    26
+#define STCP2        32
+#define CLOCKPIN2    30
+#define Resetpin2    24
+#define datapin2     28
+
+// Decoder Pins
+#define RSTN2        25
+#define OEN2         27
+#define SEL2       29
+
+#define segment1_start    0
+#define segment1_end      1
+#define segment2_start    1
+#define segment2_end      3
+#define segment3_start    3
+#define segment3_end      5
+#define segment4_start    5
+#define segment4_end      7
+#define segment5_start    7
+#define segment5_end      9
+#define segment6_start    9
+#define segment6_end      11
+#define segment7_start    11
+#define segment7_end      13
+#define segment8_start    13
+#define segment8_end      15
+
+#define IN                1
+#define OUT               2
+#define STOP              3
+
+#define MOTOR1 1
+#define MOTOR2 2
+
+//Motor 1
+#define m1c1_dir            7
+#define m1c1_en             8
+#define m1c2_dir            4
+#define m1c2_en             6
+
+//Motor 2
+#define m2c1_dir            11
+#define m2c1_en             12
+#define m2c2_dir            9
+#define m2c2_en             10
+
+int arr1[3] = {0,0,0};
+int arr2[3] = {0,0,0};
+double actual_pos1 = 0;
+double actual_pos2 = 0;
+int EncoderTicks1 = 0;
+int EncoderTicks2 = 0;
+double setpoint_pos1 = 0;
+double setpoint_pos2 = 0;
+
+//INVERSE KINEMATICS
+double top_length = 4.7;
+double distance = 17.0;
+double deltaQ = 0.0;
+double q1x = 0.0;
+double q1y = -10.0; //fixed value
+double q2x = 10.0; //fixed value
+double q2y = 0.0;
+double q1d = 0;
+double q2d = 0;
+
+double theta = 0;
+double alpha = 0;
+double beta = 0;
+double phi = 0;
+
+double L = 16.5;
+double A = 0;
+double B = 0;
+double C = 0;
+double D = 0;
+double pi = 3.14159;
+double X = 0;
+double Y = 0;
+     
+void setup() {
+    Serial.begin (250000);
+    pinMode(m1c1_dir, OUTPUT);
+    pinMode(m1c1_en, OUTPUT);
+    pinMode(m1c2_dir, OUTPUT);
+    pinMode(m1c2_en , OUTPUT);
+    analogWrite(m1c1_en, 0);
+    analogWrite(m1c2_en, 0);
+    digitalWrite(m1c1_dir, LOW);
+    digitalWrite(m1c2_dir, LOW); 
+    
+    // PINS for the ShiftRegister
+    pinMode(LATCHPIN1, OUTPUT); // PLN
+    pinMode(STCP1, OUTPUT); // STCP
+    pinMode(CLOCKPIN1, OUTPUT); // SHCP
+    pinMode(Resetpin1, OUTPUT); // MR
+    pinMode(datapin1, INPUT); // Q
+
+    pinMode(LATCHPIN2, OUTPUT); // PLN
+    pinMode(STCP2, OUTPUT); // STCP
+    pinMode(CLOCKPIN2, OUTPUT); // SHCP
+    pinMode(Resetpin2, OUTPUT); // MR
+    pinMode(datapin2, INPUT); // Q
+
+    // PINS for the Decoder
+    pinMode(RSTN1, OUTPUT); // RSTN
+    pinMode(OEN1, OUTPUT); // OEN
+    pinMode(SEL1, OUTPUT); // SEL1
+
+    pinMode(RSTN2, OUTPUT); // RSTN
+    pinMode(OEN2, OUTPUT); // OEN
+    pinMode(SEL2, OUTPUT); // SEL2
+
+    digitalWrite(Resetpin1, LOW); //Clear the register
+    digitalWrite(RSTN1, LOW); // Reset the counter
+
+    digitalWrite(Resetpin2, LOW); //Clear the register
+    digitalWrite(RSTN2, LOW); // Reset the counter
+
+    // Controls for the Decoder 
+    digitalWrite(RSTN1, HIGH);  // RSTN          
+    digitalWrite(OEN1, LOW);   // OEN
+    digitalWrite(SEL1, HIGH); // SEL1
+
+    digitalWrite(RSTN2, HIGH);  // RSTN          
+    digitalWrite(OEN2, LOW);   // OEN
+    digitalWrite(SEL2, HIGH); // SEL2
+    
+    // Controls for the Shiftregister
+    // set initial states while holding reset         
+    digitalWrite(CLOCKPIN1, LOW); 
+    digitalWrite(LATCHPIN1, HIGH); 
+    digitalWrite(STCP1, LOW);  
+
+    digitalWrite(CLOCKPIN2, LOW); 
+    digitalWrite(LATCHPIN2, HIGH); 
+    digitalWrite(STCP2, LOW);  
+    // come out of reset
+    
+    delay(5);    
+    digitalWrite(Resetpin1, HIGH);  
+    digitalWrite(Resetpin2, HIGH);   
+    delay(5);
+}
+
+// ------------- MAIN LOOP -------------- //
+void loop() { 
+    EncoderTicks1 = Decoder(LATCHPIN1, STCP1, datapin1, CLOCKPIN1);
+    EncoderTicks2 = Decoder(LATCHPIN2, STCP2, datapin2, CLOCKPIN2);
+    actual_pos1 = ((double(EncoderTicks1) * 0.75)/10); // 0.75mm per count | actual_pos is in cm
+    actual_pos2 = ((double(EncoderTicks2) * 0.75)/10); // 0.75mm per count | actual_pos is in cm
+
+    q1d = actual_pos1 + top_length;
+    q2d = actual_pos2 + top_length;
+    q1x = (-1 * distance) + q1d;
+    q2y = distance - q2d;
+    
+    //FORWARD KINEMATICS
+    deltaQ = sqrt(sq(q2x - q1x)+ sq(q2y - q1y));  
+    theta = asin((q2x - q1x) / deltaQ);    
+    phi = acos(sq(deltaQ)/(2 * L * deltaQ));  
+    alpha = theta - phi;
+    beta = (pi/2) - abs(alpha);    
+    A = L * sin(beta);
+    B = L * sin(abs(alpha));  
+    if (alpha > 0){
+      X = q2x - B;
+    }
+    else{
+      X = q2x + B;
+    }
+    Y = q2y - A;
+
+    lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
+    lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2    
+
+    HapticSegment(X, Y, arr1, arr2);
+
+    Serial.print(" Actual1: ");
+    Serial.print(actual_pos1);
+    Serial.print(" Actual2: ");
+    Serial.print(actual_pos2);
+    Serial.print(" q1x: ");
+    Serial.print(q1x);
+    Serial.print(" q2y: ");
+    Serial.print(q2y); 
+    Serial.print(" X: ");
+    Serial.print(X);
+    Serial.print(" Y: ");
+    Serial.print(Y); 
+    Serial.print("\n");
+}
+
+void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
+    double Xmin = 8.0;
+    double Xmax = 13.0;
+    double Ymin = -13.0;
+    double Ymax = -8.0;
+    double k_spring = 100; //200
+    int F = 0;
+    
+    //Segment 1
+    if (X_pos < Xmin && Y_pos > Ymax){
+      F = k_spring * (((X_pos - Xmin) + (Y_pos - Ymax))/2);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      F = map(F, 0, 255, 150, 240);
+      
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
+      Serial.print("S1");
+    }
+    //Segment 2
+    else if (X_pos > Xmin && X_pos < Xmax && Y_pos > Ymax){
+      F = k_spring * (Y_pos - Ymax);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      F = map(F, 0, 255, 150, 240);
+      
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
+      Serial.print("S2");
+    }
+    //Segment 3
+    else if (X_pos > Xmax && Y_pos > Ymax){
+      F = k_spring * (Y_pos - Ymax);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      F = map(F, 0, 255, 150, 240);
+      
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
+      Serial.print("S3");
+    }
+    //Segment 4
+    else if (X_pos < Xmin && Y_pos > Ymin && Y_pos < Ymax){
+      F = k_spring * (X_pos - Xmin);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      F = map(F, 0, 255, 150, 240);
+      
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S4");
+    }
+    //Segment 5
+    else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymax && Y_pos > Ymin){
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S5");
+    }
+    //Segment 6
+    else if (X_pos > Xmax && Y_pos > Ymin && Y_pos < Ymax){
+      F = 0;      
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S6");
+    }
+    //Segment 7
+    else if (X_pos < Xmin && Y_pos < Ymin){
+      F = k_spring * (X_pos - Xmin);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      F = map(F, 0, 255, 150, 240);
+      
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S7");
+    }
+    //Segment 8
+    else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymin){
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S8");
+    }
+    //Segment 9
+    else if (X_pos > Xmax && Y_pos < Ymin){
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("S9");
+    }
+    else{
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
+      Serial.print("No Segment");
+    }
+}
+
+// DECODER function to find EncoderTicks for each Motor
+int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
+    int incoming;
+    int EncoderTicks;
+    int msb;
+    
+    // load data to input flip-flops
+    digitalWrite(LATCHPIN, LOW);
+    delay(10); 
+    digitalWrite(LATCHPIN, HIGH); 
+    
+    // transfer data to shift register
+    digitalWrite(STCP, HIGH);
+    delay(10); 
+    digitalWrite(STCP, LOW); 
+    
+    msb = digitalRead(datapin);    
+    incoming = shiftIn(datapin, CLOCKPIN, MSBFIRST); //Taking the shift register values     
+    
+    msb = msb << 8;
+    EncoderTicks = msb + incoming;
+    EncoderTicks = EncoderTicks >> 1;
+    if(EncoderTicks >= 220){
+      EncoderTicks = 0;
+    }
+    EncoderTicks = constrain(EncoderTicks, 0, 255);
+
+    return EncoderTicks;
+}
+
+void MoveMotor_Haptic(int Motor, int Dir, int force, int arry[]){
+    int PWM_val = 127;
+    int coil1_dir;
+    int coil1_en;
+    int coil2_dir;
+    int coil2_en;
+    int PWM_dir;
+    
+    if (Motor == 1){
+      coil1_dir = m1c1_dir;
+      coil1_en = m1c1_en;
+      coil2_dir = m1c2_dir;
+      coil2_en = m1c2_en;
+    }
+    else { //if Motor == 2
+      coil1_dir = m2c1_dir;
+      coil1_en = m2c1_en;
+      coil2_dir = m2c2_dir;
+      coil2_en = m2c2_en;
+    }
+
+    if (Dir == 1){ //if IN
+      if(arry[1] == 0){ // CCW
+        PWM_val = force;
+        PWM_dir = LOW;
+      }
+      else if(arry[1] == 1) { //CW
+        PWM_val = force;
+        PWM_dir = HIGH;
+      }
+      else PWM_val = 0;
+    }
+    else if (Dir == 2){ //if OUT
+      if(arry[2] == 0){ // CCW
+        PWM_val = force;
+        PWM_dir = LOW;
+      }
+      else if(arry[2] == 1) { //CW
+        PWM_val = force;
+        PWM_dir = HIGH;
+      }
+      else PWM_val = 0;
+    }
+    else if (Dir == 3){ //if STOP
+      PWM_val = 0;
+    }
+    else PWM_val = 0;
+
+    Serial.print(" Motor");
+    Serial.print(Motor);
+    Serial.print(" PWM: ");
+    Serial.print(PWM_val);
+
+    if(arry[0] == 1) { // if its Coil 1
+      analogWrite(coil1_en, PWM_val);
+      digitalWrite(coil1_dir, PWM_dir);      
+      analogWrite(coil2_en, 0);
+    }
+    else if(arry[0] == 2) { // if its Coil 2
+      analogWrite(coil2_en, PWM_val);
+      digitalWrite(coil2_dir, PWM_dir);      
+      analogWrite(coil1_en, 0);
+    }
+    else if ((Dir == 3 && arry[0] == 1) || (Dir == 3 && arry[1] == 2)){
+      analogWrite(coil1_en, PWM_val);
+      analogWrite(coil2_en, PWM_val);
+    }
+    else{
+      analogWrite(coil1_en, 0);
+      analogWrite(coil2_en, 0);
+    }
+}
+
+// Lookup table function to determine which coils to turn on at which polarity
+void lookup(double rotor_pos, int arr[3]) {
+  //SEGMENT 1_________________________________________________________________
+  if(rotor_pos >= segment1_start && rotor_pos < segment1_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 2_________________________________________________________________
+  else if(rotor_pos >= segment2_start && rotor_pos < segment2_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 3_________________________________________________________________
+  else if(rotor_pos >= segment3_start && rotor_pos < segment3_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 4_________________________________________________________________
+  else if(rotor_pos >= segment4_start && rotor_pos < segment4_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  //SEGMENT 5_________________________________________________________________
+  else if(rotor_pos >= segment5_start && rotor_pos < segment5_end) {
+    arr[0] = 1;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 6_________________________________________________________________
+  else if(rotor_pos >= segment6_start && rotor_pos < segment6_end) {
+    arr[0] = 2;
+    arr[1] = 1;
+    arr[2] = 0;
+  }
+  //SEGMENT 7_________________________________________________________________
+  else if(rotor_pos >= segment7_start && rotor_pos < segment7_end) {
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;    
+  }
+  //SEGMENT 8_________________________________________________________________
+  else if(rotor_pos >= segment8_start && rotor_pos < segment8_end) {
+    arr[0] = 2;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+  else{
+    arr[0] = 1;
+    arr[1] = 0;
+    arr[2] = 1;
+  }
+}
