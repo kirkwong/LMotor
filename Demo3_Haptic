@@ -190,9 +190,7 @@ void loop() {
     Y = q2y - A;
 
     lookup(actual_pos1, arr1); //check which coil to turn on for Motor 1
-    lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2
-
-    
+    lookup(actual_pos2, arr2); //check which coil to turn on for Motor 2    
 
     HapticSegment(X, Y, arr1, arr2);
 
@@ -216,64 +214,88 @@ void HapticSegment (double X_pos, double Y_pos, int arry1[], int arry2[]){
     double Xmax = 13.0;
     double Ymin = -13.0;
     double Ymax = -6.0;
+    double k_wall = 4000;
+    int F = 0;
     
     //Segment 1
     if (X_pos < Xmin && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, OUT, arry1);
-      MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      F = 220;
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
       Serial.print("S1");
     }
     //Segment 2
     else if (X_pos > Xmin && X_pos < Xmax && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, STOP, arry1);
-      MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      F = k_wall * (Y_pos - Ymax);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
       Serial.print("S2");
     }
     //Segment 3
     else if (X_pos > Xmax && Y_pos > Ymax){
-      MoveMotor_Haptic(MOTOR1, IN, arry1);
-      MoveMotor_Haptic(MOTOR2, OUT, arry2);
+      F = 220;
+      MoveMotor_Haptic(MOTOR1, IN, F, arry1);
+      MoveMotor_Haptic(MOTOR2, OUT, F, arry2);
       Serial.print("S3");
     }
     //Segment 4
     else if (X_pos < Xmin && Y_pos > Ymin && Y_pos < Ymax){
-      MoveMotor_Haptic(MOTOR1, OUT, arry1);
-      MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      F = k_wall * (X_pos - Xmin);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
       Serial.print("S4");
     }
     //Segment 5
     else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymax && Y_pos > Ymin){
-      MoveMotor_Haptic(MOTOR1, STOP, arry1);
-      MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
       Serial.print("S5");
     }
     //Segment 6
     else if (X_pos > Xmax && Y_pos > Ymin && Y_pos < Ymax){
-      MoveMotor_Haptic(MOTOR1, IN, arry1);
-      MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      F = k_wall * (X_pos - Xmax);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+      
+      MoveMotor_Haptic(MOTOR1, IN, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
       Serial.print("S6");
     }
     //Segment 7
     else if (X_pos < Xmin && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, OUT, arry1);
-      MoveMotor_Haptic(MOTOR2, IN, arry2);
+      F = 220;
+      MoveMotor_Haptic(MOTOR1, OUT, F, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, F, arry2);
       Serial.print("S7");
     }
     //Segment 8
     else if (X_pos < Xmax && X_pos > Xmin && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, STOP, arry1);
-      MoveMotor_Haptic(MOTOR2, IN, arry2);
+      F = k_wall * (Y_pos - Ymin);
+      F = abs(F);
+      F = constrain(F, 0, 255);
+
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, F, arry2);
       Serial.print("S8");
     }
     //Segment 9
     else if (X_pos > Xmax && Y_pos < Ymin){
-      MoveMotor_Haptic(MOTOR1, IN, arry1);
-      MoveMotor_Haptic(MOTOR2, IN, arry2);
+      F = 220;
+      MoveMotor_Haptic(MOTOR1, IN, F, arry1);
+      MoveMotor_Haptic(MOTOR2, IN, F, arry2);
       Serial.print("S9");
     }
     else{
-      MoveMotor_Haptic(MOTOR1, STOP, arry1);
-      MoveMotor_Haptic(MOTOR2, STOP, arry2);
+      F = 0;
+      MoveMotor_Haptic(MOTOR1, STOP, F, arry1);
+      MoveMotor_Haptic(MOTOR2, STOP, F, arry2);
       Serial.print("No Segment");
     }
 }
@@ -308,7 +330,7 @@ int Decoder(int LATCHPIN, int STCP, int datapin, int CLOCKPIN){
     return EncoderTicks;
 }
 
-void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
+void MoveMotor_Haptic(int Motor, int Dir, int force, int arry[]){
     int PWM_val = 127;
     int coil1_dir;
     int coil1_en;
@@ -331,22 +353,22 @@ void MoveMotor_Haptic(int Motor, int Dir, int arry[]){
 
     if (Dir == 1){ //if IN
       if(arry[1] == 0){ // CCW
-        PWM_val = 220;
+        PWM_val = force;
         PWM_dir = LOW;
       }
       else if(arry[1] == 1) { //CW
-        PWM_val = 220;
+        PWM_val = force;
         PWM_dir = HIGH;
       }
       else PWM_val = 0;
     }
     else if (Dir == 2){ //if OUT
       if(arry[2] == 0){ // CCW
-        PWM_val = 220;
+        PWM_val = force;
         PWM_dir = LOW;
       }
       else if(arry[2] == 1) { //CW
-        PWM_val = 220;
+        PWM_val = force;
         PWM_dir = HIGH;
       }
       else PWM_val = 0;
