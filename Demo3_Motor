@@ -180,7 +180,7 @@ void loop() {
 
     if ((last_error == error) && (abs(error) > 0.5)){
       if(error_count > 5){
-        PWM_val = 230;
+        PWM_val = 255;
       }
       if(error_count > 45){
         error_count = 0;
@@ -188,10 +188,6 @@ void loop() {
       error_count++;
     }
     last_error = error;
-    Serial.print(" lastError: ");
-    Serial.print(last_error);
-    Serial.print(" errCount: ");
-    Serial.print(error_count);
     
     if(arr[0] == 1) { // if its Coil 1
       analogWrite(m1c1_en, PWM_val);
